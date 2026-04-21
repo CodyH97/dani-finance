@@ -308,6 +308,35 @@ body::before {
 .empty-state svg { width:32px; height:32px; stroke:var(--text3); fill:none; stroke-width:1.5; stroke-linecap:round; margin:0 auto 12px; display:block; }
 .divider { height:1px; background:var(--border); margin:20px 0; }
 
+/* ── SYNC ── */
+.sync-indicator {
+  display:flex; align-items:center; gap:6px; padding:5px 10px;
+  border-radius:var(--r); border:1px solid var(--border);
+  cursor:pointer; transition:border-color 0.15s; flex-shrink:0;
+}
+.sync-indicator:hover { border-color:var(--border2); }
+.sync-dot { width:7px; height:7px; border-radius:50%; background:var(--text3); flex-shrink:0; transition:background 0.3s; }
+.sync-label { font-size:11px; font-family:var(--mono); color:var(--text3); display:none; }
+@media (min-width:640px) { .sync-label { display:inline; } }
+.sync-indicator.idle .sync-dot   { background:var(--green); }
+.sync-indicator.idle .sync-label { color:var(--green); }
+.sync-indicator.syncing .sync-dot { background:var(--amber); animation:sdot 1s infinite; }
+.sync-indicator.syncing .sync-label { color:var(--amber); }
+.sync-indicator.error .sync-dot   { background:var(--red); }
+.sync-indicator.error .sync-label { color:var(--red); }
+@keyframes sdot { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+.sync-connected-box {
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:12px 14px; background:var(--green-dim);
+  border:1px solid rgba(76,175,125,0.25); border-radius:var(--r);
+  margin-bottom:12px;
+}
+.sync-conn-info { flex:1; min-width:0; }
+.sync-conn-name { font-size:14px; font-weight:700; color:var(--green); }
+.sync-conn-meta { font-size:11px; color:var(--text3); font-family:var(--mono); margin-top:2px; }
+.sync-error-msg  { font-size:11px; color:var(--red); font-family:var(--mono); margin-top:4px; }
+
 /* ── TOAST ── */
 .toast { position:fixed; bottom:24px; right:24px; background:var(--surface3); border:1px solid var(--border2); border-radius:var(--r); padding:11px 16px; font-size:13px; transform:translateY(80px); opacity:0; transition:all 0.3s cubic-bezier(0.4,0,0.2,1); z-index:999; pointer-events:none; }
 .toast.show { transform:translateY(0); opacity:1; }
@@ -350,6 +379,10 @@ body::before {
     <button class="tab-btn" onclick="switchTab('debts')">Debts</button>
     <button class="tab-btn" onclick="switchTab('budget')">Budget</button>
   </nav>
+  <div id="sync-indicator" class="sync-indicator" onclick="switchTab('dashboard');scrollToSync()" title="Sync status">
+    <div class="sync-dot"></div>
+    <span class="sync-label">Not synced</span>
+  </div>
   <div class="header-actions">
     <button class="btn btn-ghost btn-sm" onclick="exportData()">Export</button>
     <button class="btn btn-ghost btn-sm" onclick="triggerImport()">Import</button>
@@ -397,6 +430,9 @@ body::before {
       <div class="btn-row">
         <button class="btn btn-danger btn-sm" onclick="clearAllData()">Clear all data</button>
       </div>
+      <div class="divider"></div>
+      <div class="section-label" style="margin-bottom:14px;" id="sync-section-anchor">GitHub Sync</div>
+      <div id="sync-settings-ui"></div>
     </div>
   </div>
 </div>
@@ -572,7 +608,7 @@ function loadState() {
     return deepMerge(deepClone(DEFAULT), saved);
   } catch(e) { return deepClone(DEFAULT); }
 }
-function saveState() { localStorage.setItem('dft_v2', JSON.stringify(S)); }
+function saveState() { localStorage.setItem('dft_v2', JSON.stringify(S)); debouncedPush(); }
 function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
 function deepMerge(target, source) {
   for (const k in source) {
@@ -742,6 +778,8 @@ function renderDashboard() {
 
   // Chart + history
   renderHistorySection();
+  // Sync UI (in settings section at bottom of this tab)
+  renderSyncUI();
 }
 
 function renderHistorySection() {
@@ -1195,6 +1233,250 @@ function clearAllData() {
   toast('Data cleared');
 }
 
+// ── GITHUB GIST SYNC ──
+const GIST_FILE = 'finance-tracker-data.json';
+const GIST_DESC = 'Finance Tracker — auto sync (do not rename)';
+const GH_API    = 'https://api.github.com';
+
+// Sync config lives separately so it survives clearAllData()
+let SYNC = { token:'', gistId:'', username:'', lastSync:null, status:'offline', error:'' };
+let _pushTimer;
+
+function loadSyncConfig() {
+  try {
+    const s = JSON.parse(localStorage.getItem('dft_sync') || '{}');
+    Object.assign(SYNC, s);
+  } catch(e) {}
+}
+function saveSyncConfig() {
+  localStorage.setItem('dft_sync', JSON.stringify({
+    token: SYNC.token, gistId: SYNC.gistId,
+    username: SYNC.username, lastSync: SYNC.lastSync,
+  }));
+}
+
+async function ghFetch(method, path, body) {
+  const r = await fetch(GH_API + path, {
+    method,
+    headers: {
+      'Authorization': 'Bearer ' + SYNC.token,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({ message: r.statusText }));
+    throw new Error(e.message || r.statusText);
+  }
+  return r.json();
+}
+
+function setSyncStatus(status, error) {
+  SYNC.status = status;
+  if (error !== undefined) SYNC.error = error;
+  const el = document.getElementById('sync-indicator');
+  if (!el) return;
+  el.className = 'sync-indicator ' + (status === 'idle' ? 'idle' : status === 'syncing' ? 'syncing' : status === 'error' ? 'error' : '');
+  const lbl = el.querySelector('.sync-label');
+  if (lbl) lbl.textContent =
+    status === 'idle'    ? 'Synced'    :
+    status === 'syncing' ? 'Syncing…'  :
+    status === 'error'   ? 'Sync error':
+    'Not synced';
+}
+
+async function connectGist() {
+  const tokenEl = document.getElementById('sync-token-input');
+  const token = tokenEl ? tokenEl.value.trim() : '';
+  if (!token) { toast('Paste your GitHub token first', 'error'); return; }
+  setSyncStatus('syncing');
+  try {
+    // Verify token + get username
+    const user = await fetch(GH_API + '/user', {
+      headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
+    }).then(r => r.json());
+    if (!user.login) throw new Error('Invalid token or missing "gist" scope');
+    SYNC.token = token;
+    SYNC.username = user.login;
+
+    // Search existing gists for our tracker (up to 5 pages)
+    let found = null;
+    for (let page = 1; page <= 5 && !found; page++) {
+      const gists = await ghFetch('GET', `/gists?per_page=100&page=${page}`);
+      if (!gists.length) break;
+      found = gists.find(g => g.description === GIST_DESC && g.files[GIST_FILE]);
+    }
+
+    if (found) {
+      SYNC.gistId = found.id;
+      await pullFromGist(true);   // load remote data onto this device
+      toast('Connected as @' + SYNC.username + ' — loaded your data!', 'success');
+    } else {
+      await createGist();         // first time: push current data
+      toast('Connected as @' + SYNC.username + ' — Gist created!', 'success');
+    }
+
+    setSyncStatus('idle', '');
+    saveSyncConfig();
+    renderSyncUI();
+  } catch(e) {
+    SYNC.token = ''; // don't persist a bad token
+    setSyncStatus('error', e.message);
+    renderSyncUI();
+    toast('Connection failed: ' + e.message, 'error');
+  }
+}
+
+async function createGist() {
+  const g = await ghFetch('POST', '/gists', {
+    description: GIST_DESC,
+    public: false,
+    files: { [GIST_FILE]: { content: JSON.stringify(S, null, 2) } },
+  });
+  SYNC.gistId = g.id;
+  SYNC.lastSync = new Date().toISOString();
+}
+
+async function pushToGist() {
+  if (!SYNC.token || !SYNC.gistId) return;
+  setSyncStatus('syncing');
+  try {
+    await ghFetch('PATCH', '/gists/' + SYNC.gistId, {
+      files: { [GIST_FILE]: { content: JSON.stringify(S, null, 2) } },
+    });
+    SYNC.lastSync = new Date().toISOString();
+    setSyncStatus('idle', '');
+    saveSyncConfig();
+    renderSyncUI();
+  } catch(e) {
+    setSyncStatus('error', e.message);
+    saveSyncConfig();
+    renderSyncUI();
+  }
+}
+
+async function pullFromGist(silent = false) {
+  if (!SYNC.token || !SYNC.gistId) return;
+  if (!silent) setSyncStatus('syncing');
+  try {
+    const g = await ghFetch('GET', '/gists/' + SYNC.gistId);
+    const content = g.files[GIST_FILE]?.content;
+    if (!content) throw new Error('No data found in Gist');
+    const parsed = JSON.parse(content);
+    S = deepMerge(deepClone(DEFAULT), parsed);
+    localStorage.setItem('dft_v2', JSON.stringify(S)); // bypass debouncedPush
+    SYNC.lastSync = new Date().toISOString();
+    setSyncStatus('idle', '');
+    saveSyncConfig();
+    renderAll();
+    renderSyncUI();
+    if (!silent) toast('Pulled latest from GitHub', 'success');
+  } catch(e) {
+    setSyncStatus('error', e.message);
+    saveSyncConfig();
+    renderSyncUI();
+    if (!silent) toast('Pull failed: ' + e.message, 'error');
+  }
+}
+
+function disconnectGist() {
+  if (!confirm('Disconnect GitHub Sync?\nYour local data stays intact — only the sync connection is removed.')) return;
+  clearTimeout(_pushTimer);
+  SYNC = { token:'', gistId:'', username:'', lastSync:null, status:'offline', error:'' };
+  localStorage.removeItem('dft_sync');
+  setSyncStatus('offline');
+  renderSyncUI();
+  toast('Disconnected from GitHub Sync');
+}
+
+// Debounce pushes so rapid changes only trigger one sync
+function debouncedPush() {
+  if (!SYNC.token || !SYNC.gistId) return;
+  clearTimeout(_pushTimer);
+  _pushTimer = setTimeout(pushToGist, 6000); // 6s after last change
+}
+
+function fmtTimeAgo(iso) {
+  if (!iso) return 'never';
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (diff < 10)   return 'just now';
+  if (diff < 60)   return diff + 's ago';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric' });
+}
+
+function renderSyncUI() {
+  const el = document.getElementById('sync-settings-ui');
+  if (!el) return;
+
+  if (!SYNC.token) {
+    el.innerHTML = `
+      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">
+        Connect a GitHub account to sync your data across any browser or device.
+        Your data is saved as a <strong>private Gist</strong> — only your token can access it.
+      </p>
+      <div class="field" style="margin-bottom:12px;">
+        <label>GitHub Personal Access Token</label>
+        <input type="password" id="sync-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="btn-row" style="margin-bottom:14px;">
+        <button class="btn btn-primary btn-sm" onclick="connectGist()">Connect GitHub</button>
+      </div>
+      <div class="note">
+        <strong>How to get a token:</strong><br>
+        1. Go to <strong>github.com → Settings → Developer settings → Personal access tokens → Tokens (classic)</strong><br>
+        2. Click <strong>Generate new token (classic)</strong>, set any expiry<br>
+        3. Under <em>Select scopes</em>, check only <strong>gist</strong> — nothing else needed<br>
+        4. Copy the token (starts with <code>ghp_</code>) and paste above<br><br>
+        The token is stored only in <em>this browser's</em> localStorage and is sent only to <strong>api.github.com</strong>.
+        Enter the same token on any other device to access your data.
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div class="sync-connected-box">
+        <div class="sync-conn-info">
+          <div class="sync-conn-name">@${escHtml(SYNC.username)}</div>
+          <div class="sync-conn-meta">
+            Gist: ${SYNC.gistId.slice(0, 14)}…
+            &nbsp;·&nbsp; Last sync: ${fmtTimeAgo(SYNC.lastSync)}
+          </div>
+          ${SYNC.error ? `<div class="sync-error-msg">⚠ ${escHtml(SYNC.error)}</div>` : ''}
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="pullFromGist()">Pull latest</button>
+          <button class="btn btn-danger btn-sm" onclick="disconnectGist()">Disconnect</button>
+        </div>
+      </div>
+      <div class="note">
+        Data auto-syncs ~6 seconds after any change. To use on another device or browser,
+        go to Settings and connect the same GitHub token — your Gist will be found automatically.
+      </div>`;
+  }
+}
+
+function scrollToSync() {
+  setTimeout(() => {
+    const el = document.getElementById('sync-section-anchor');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 50);
+}
+
+async function initSync() {
+  loadSyncConfig();
+  if (!SYNC.token) { setSyncStatus('offline'); renderSyncUI(); return; }
+  // Pull fresh data from Gist on every page load when connected
+  setSyncStatus('syncing');
+  try {
+    await pullFromGist(true);
+  } catch(e) {
+    setSyncStatus('error', e.message);
+    renderSyncUI();
+  }
+}
+
 // ── TOAST ──
 function toast(msg, type='') {
   const t = document.getElementById('toast');
@@ -1206,6 +1488,7 @@ function toast(msg, type='') {
 // ── INIT ──
 S = loadState();
 switchTab('dashboard');
+initSync(); // async — pulls from Gist if token exists, then re-renders
 </script>
 </body>
 </html>
