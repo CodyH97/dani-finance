@@ -700,6 +700,12 @@ function fmtProj(p) {
   const parts=[]; if(yr>0)parts.push(yr+'yr'); if(mo>0)parts.push(mo+'mo');
   return parts.join(' ')+' · '+p.date.toLocaleDateString('en-US',{month:'short',year:'numeric'});
 }
+function reqPayment(balance, apr, months) {
+  if(balance<=0||months<=0) return 0;
+  const mr=apr/100/12;
+  if(mr===0) return Math.ceil(balance/months*100)/100;
+  return Math.ceil(balance*mr/(1-Math.pow(1+mr,-months))*100)/100;
+}
 
 // ── TABS ──
 let activeTab='home';
@@ -774,10 +780,16 @@ function renderHome() {
     const p=pct(d.balance,d.original), isPaid=d.balance<=0;
     const color=isPaid?'#4caf7d':(BAR_COLORS[d.tag]||'#5c5a56');
     const proj=project(d.balance,d.apr,d.payment);
+    const moLeft=Math.max(1,Math.round((goal-new Date())/1000/60/60/24/30.44));
+    const behindGoal=!isPaid&&proj.ok&&proj.months>0&&proj.date>goal;
+    const needed=behindGoal?reqPayment(d.balance,d.apr,moLeft):0;
+    const projStr=isPaid?'✓':behindGoal
+      ?`<span style="color:var(--amber)">⚠ Behind · need ${fmt(needed)}/mo</span>`
+      :`<span style="color:var(--green)">${fmtProj(proj)}</span>`;
     return `<div class="dpr">
       <div class="dpr-top"><span class="dpr-name">${escHtml(d.name)}</span><span class="dpr-meta">${isPaid?'Paid off ✓':fmt(d.balance)+' left'}</span></div>
       <div class="dpr-bar"><div class="dpr-fill" style="width:${p}%;background:${color};"></div></div>
-      <div class="dpr-stats"><span>${p}% paid off</span><span>${isPaid?'✓':fmtProj(proj)}</span></div>
+      <div class="dpr-stats"><span>${p}% paid off</span><span>${projStr}</span></div>
     </div>`;
   }).join('');
   // This month card
@@ -1032,6 +1044,8 @@ function removeExpItem(catId,itemId) {
 
 // ── DEBTS TAB ──
 function renderDebts() {
+  const goal=new Date(S.settings.goalDate+'T00:00:00');
+  const moLeft=Math.max(1,Math.round((goal-new Date())/1000/60/60/24/30.44));
   document.getElementById('balance-fields').innerHTML=S.debts.map(d=>`
     <div class="field"><label>${escHtml(d.name)}</label>
       <input type="number" id="bal-${d.id}" value="${d.balance}" inputmode="decimal" placeholder="Balance"></div>`).join('');
@@ -1039,6 +1053,8 @@ function renderDebts() {
     const isPaid=d.balance<=0, p=pct(d.balance,d.original);
     const color=isPaid?'#4caf7d':(BAR_COLORS[d.tag]||'#5c5a56');
     const proj=project(d.balance,d.apr,d.payment);
+    const behindGoal=!isPaid&&proj.ok&&proj.months>0&&proj.date>goal;
+    const needed=behindGoal?reqPayment(d.balance,d.apr,moLeft):0;
     if(editingDebtId===d.id){
       return `<div class="debt-card editing" id="dc-${d.id}">
         <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Editing: ${escHtml(d.name)}</div>
@@ -1077,7 +1093,8 @@ function renderDebts() {
       <div class="debt-stats">
         <div><div class="ds-lbl">Paid off</div><div class="ds-val">${fmt(d.original-d.balance)}</div></div>
         <div><div class="ds-lbl">Progress</div><div class="ds-val">${p}%</div></div>
-        <div><div class="ds-lbl">Payoff</div><div class="ds-val${proj.ok?'':' warn'}">${isPaid?'Done ✓':fmtProj(proj)}</div></div>
+        <div><div class="ds-lbl">Payoff</div><div class="ds-val${behindGoal?' warn':proj.ok?'':' warn'}">${isPaid?'Done ✓':behindGoal?`⚠ ${fmtProj(proj)}`:fmtProj(proj)}</div></div>
+        ${behindGoal?`<div><div class="ds-lbl">Need for goal</div><div class="ds-val warn">${fmt(needed)}/mo</div></div>`:''}
         ${proj.ok&&proj.months>0?`<div><div class="ds-lbl">Interest remaining</div><div class="ds-val">${fmt(proj.totalInterest)}</div></div>`:''}
       </div>
       <div class="btn-row"><button class="btn btn-ghost btn-sm" onclick="startDebtEdit('${d.id}')">Edit</button></div>
