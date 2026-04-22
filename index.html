@@ -431,6 +431,35 @@ body::before {
 .bnav-btn span { font-size:10px; font-weight:700; font-family:var(--font); letter-spacing:0.04em; }
 .bnav-btn.active { color:var(--accent); }
 
+/* ── OVERVIEW TOGGLE ── */
+.overview-toggle { width:100%; padding:9px 14px; border-radius:var(--r); background:transparent; border:1px solid var(--border); color:var(--text3); font-family:var(--font); font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:16px; transition:all 0.15s; letter-spacing:0.05em; text-transform:uppercase; }
+.overview-toggle:hover { background:var(--surface); color:var(--text2); border-color:var(--border2); }
+.overview-toggle svg { transition:transform 0.2s; }
+.overview-toggle.open svg { transform:rotate(180deg); }
+#home-overview { display:none; }
+#home-overview.open { display:block; }
+
+/* ── CLOSEOUT MODAL ── */
+.co-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:500; display:none; align-items:flex-end; justify-content:center; }
+.co-overlay.open { display:flex; }
+.co-modal { background:var(--surface); border-top:1px solid var(--border2); border-radius:20px 20px 0 0; padding:22px 20px calc(env(safe-area-inset-bottom,0px)+22px); width:100%; max-width:560px; animation:slideUp 0.26s cubic-bezier(0.4,0,0.2,1); }
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.co-title { font-size:18px; font-weight:800; margin-bottom:3px; }
+.co-sub { font-size:12px; color:var(--text3); margin-bottom:16px; font-family:var(--mono); }
+.co-table { width:100%; border-collapse:collapse; margin-bottom:14px; }
+.co-table th { text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.06em; color:var(--text3); padding:0 0 7px; border-bottom:1px solid var(--border); }
+.co-table td { padding:8px 0; border-bottom:1px solid var(--border); font-size:12px; font-family:var(--mono); color:var(--text2); }
+.co-table tr:last-child td { border-bottom:none; }
+.co-down { color:var(--green); font-weight:600; }
+.co-total-row { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--surface2); border-radius:var(--r); margin-bottom:18px; }
+.co-total-lbl { font-size:13px; font-weight:700; }
+.co-total-val { font-family:var(--mono); font-size:15px; font-weight:700; color:var(--green); }
+
+/* ── PAYCHECK CELEBRATION ── */
+.pc-hdr.all-paid { background:rgba(76,175,125,0.1); border-bottom-color:rgba(76,175,125,0.25); }
+.mp-hdr.all-paid { background:rgba(76,175,125,0.1); border-bottom-color:rgba(76,175,125,0.25); }
+.all-paid-badge { font-size:11px; font-weight:700; color:var(--green); letter-spacing:0.02em; }
+
 /* ── RESPONSIVE ── */
 @media (max-width:640px) {
   :root { --header-h:50px; }
@@ -472,8 +501,8 @@ body::before {
   </div>
   <nav class="tab-nav">
     <button class="tab-btn active" onclick="switchTab('home')">Home</button>
-    <button class="tab-btn" onclick="switchTab('pay')">Pay</button>
-    <button class="tab-btn" onclick="switchTab('debts')">Debts</button>
+    <button class="tab-btn" onclick="switchTab('pay')">Bills</button>
+    <button class="tab-btn" onclick="switchTab('debts')">Progress</button>
     <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
   </nav>
   <div id="sync-indicator" class="sync-pill" onclick="switchTab('settings')" title="Sync status — tap to configure">
@@ -504,38 +533,45 @@ body::before {
   <!-- Month plan with tappable checkboxes -->
   <div id="home-month-plan"></div>
 
-  <div class="cd-strip">
-    <div class="cd-lbl">Days left</div>
-    <div class="cd-units">
-      <div class="cu"><div class="cu-val" id="cd-m">—</div><div class="cu-lbl">mo</div></div>
-      <div class="cu"><div class="cu-val" id="cd-w">—</div><div class="cu-lbl">wk</div></div>
-      <div class="cu"><div class="cu-val" id="cd-d">—</div><div class="cu-lbl">days</div></div>
+  <button class="overview-toggle" id="overview-toggle-btn" onclick="toggleOverview()">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="2,5 7,9.5 12,5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Progress &amp; Stats
+  </button>
+
+  <div id="home-overview">
+    <div class="cd-strip">
+      <div class="cd-lbl">Days left</div>
+      <div class="cd-units">
+        <div class="cu"><div class="cu-val" id="cd-m">—</div><div class="cu-lbl">mo</div></div>
+        <div class="cu"><div class="cu-val" id="cd-w">—</div><div class="cu-lbl">wk</div></div>
+        <div class="cu"><div class="cu-val" id="cd-d">—</div><div class="cu-lbl">days</div></div>
+      </div>
+      <div class="cd-info" id="cd-info"></div>
     </div>
-    <div class="cd-info" id="cd-info"></div>
-  </div>
 
-  <div class="metrics" id="home-metrics"></div>
-  <div id="home-priority"></div>
+    <div class="metrics" id="home-metrics"></div>
+    <div id="home-priority"></div>
 
-  <div class="section">
-    <div class="section-hdr"><div class="section-label">Debt Progress</div></div>
-    <div id="home-progress"></div>
-  </div>
-
-  <div class="section">
-    <div class="section-hdr">
-      <div class="section-label">Debt Trend</div>
-      <button class="btn btn-ghost btn-sm" onclick="saveSnapshot()">Save snapshot</button>
+    <div class="section">
+      <div class="section-hdr"><div class="section-label">Debt Progress</div></div>
+      <div id="home-progress"></div>
     </div>
-    <div id="home-chart"></div>
-    <div id="home-history"></div>
-  </div>
+
+    <div class="section">
+      <div class="section-hdr">
+        <div class="section-label">Debt Trend</div>
+        <button class="btn btn-ghost btn-sm" onclick="saveSnapshot()">Save snapshot</button>
+      </div>
+      <div id="home-chart"></div>
+      <div id="home-history"></div>
+    </div>
+  </div><!-- /home-overview -->
 
 </div><!-- /home -->
 
 <!-- ── PAY ── -->
 <div class="tab-panel" id="panel-pay">
-  <div class="page-title">Pay <span>Plan</span></div>
+  <div class="page-title">Bill <span>Plan</span></div>
   <p class="page-sub">Check off bills as you pay them each paycheck.</p>
 
   <!-- Due date editor (hidden by default) -->
@@ -575,7 +611,7 @@ body::before {
 
 <!-- ── DEBTS ── -->
 <div class="tab-panel" id="panel-debts">
-  <div class="page-title">Debt <span>Tracker</span></div>
+  <div class="page-title">Debt <span>Progress</span></div>
   <p class="page-sub">Update balances after each payment. Payoff dates calculate automatically.</p>
 
   <div class="panel">
@@ -679,6 +715,26 @@ body::before {
 
 </div><!-- /app -->
 
+<!-- ── CLOSEOUT MODAL ── -->
+<div class="co-overlay" id="co-overlay" onclick="cancelCloseout(event)">
+  <div class="co-modal" id="co-modal" onclick="event.stopPropagation()">
+    <div class="co-title" id="co-title">Close out April 2026</div>
+    <div class="co-sub" id="co-sub">Balance changes after this month's payments</div>
+    <table class="co-table" id="co-table">
+      <thead><tr><th>Debt</th><th>Before</th><th>After</th><th>Paid down</th></tr></thead>
+      <tbody id="co-tbody"></tbody>
+    </table>
+    <div class="co-total-row" id="co-total-row">
+      <span class="co-total-lbl">Total paid down</span>
+      <span class="co-total-val" id="co-total-val">—</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" style="flex:1;" onclick="confirmCloseout()">Confirm &amp; Close Month</button>
+      <button class="btn btn-ghost" onclick="cancelCloseout()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── BOTTOM NAV ── -->
 <nav class="bottom-nav">
   <div class="bnav-inner">
@@ -688,11 +744,11 @@ body::before {
     </button>
     <button class="bnav-btn" data-tab="pay" onclick="switchTab('pay')">
       <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="7" cy="15" r="1.2" fill="currentColor"/><line x1="11" y1="15" x2="17" y2="15"/></svg>
-      <span>Pay</span>
+      <span>Bills</span>
     </button>
     <button class="bnav-btn" data-tab="debts" onclick="switchTab('debts')">
       <svg viewBox="0 0 24 24"><polyline points="22,7 13,16 9,12 2,19"/><polyline points="16,19 22,19 22,13"/></svg>
-      <span>Debts</span>
+      <span>Progress</span>
     </button>
     <button class="bnav-btn" data-tab="settings" onclick="switchTab('settings')">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -830,7 +886,7 @@ function switchTab(tab) {
   activeTab=tab;
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>{
-    const map={home:'home',pay:'pay',debts:'debt',settings:'setting'};
+    const map={home:'home',pay:'bill',debts:'progress',settings:'setting'};
     b.classList.toggle('active', b.textContent.toLowerCase().includes(map[tab]||tab));
   });
   document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
@@ -842,6 +898,16 @@ function switchTab(tab) {
   if(tab==='settings') renderSettings();
 }
 function renderAll(){ switchTab(activeTab); }
+
+// ── OVERVIEW TOGGLE (Home) ──
+let _overviewOpen = false;
+function toggleOverview() {
+  _overviewOpen = !_overviewOpen;
+  const ov = document.getElementById('home-overview');
+  const btn = document.getElementById('overview-toggle-btn');
+  if(ov) ov.classList.toggle('open', _overviewOpen);
+  if(btn) btn.classList.toggle('open', _overviewOpen);
+}
 
 // ── HOME TAB ──
 function renderHome() {
@@ -1005,13 +1071,16 @@ function renderMonthPlan() {
     const directive=rem>0&&attackDebt
       ? `<div class="mp-directive">→ Put ${fmt(rem)} toward ${escHtml(attackDebt.name)}</div>`
       : rem<0?`<div class="mp-directive over">⚠ Over budget by ${fmt(Math.abs(rem))}</div>`:'';
+    const allPaid=its.length>0&&doneCnt===its.length;
     return `<div class="mp-card">
-      <div class="mp-hdr">
+      <div class="mp-hdr${allPaid?' all-paid':''}">
         <div class="mp-hdr-l">
           <div class="mp-dot" style="background:${pal.color}"></div>
           <div><div class="mp-name">${escHtml(pc.name)}</div><div class="mp-date" style="color:${pal.color}">${dateStr}</div></div>
         </div>
-        <div class="mp-progress">${doneCnt}/${its.length} paid</div>
+        ${allPaid
+          ? `<div class="all-paid-badge">✓ All paid!</div>`
+          : `<div class="mp-progress">${doneCnt}/${its.length} paid</div>`}
       </div>
       <div class="mp-bills">${billRows}</div>
       ${pc.amount>0?`<div class="mp-footer">
@@ -1105,6 +1174,8 @@ function advancePaycheckDates() {
     p.nextDate=d.toISOString().split('T')[0];
   });
 }
+// ── CLOSE OUT MONTH (in-app modal) ──
+let _closeoutData = null;
 function closeOutMonth() {
   const monthLabel=new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'});
   const activDebts=S.debts.filter(d=>d.balance>0);
@@ -1116,9 +1187,30 @@ function closeOutMonth() {
   const totalBefore=S.debts.reduce((s,d)=>s+d.balance,0);
   const totalAfter=changes.reduce((s,c)=>s+c.newBal,0)+S.debts.filter(d=>d.balance<=0).reduce((s,d)=>s+d.balance,0);
   const totalDown=totalBefore-totalAfter;
-  const lines=changes.map(c=>`  ${c.name}: ${fmt(c.oldBal)} → ${fmt(c.newBal)} (−${fmt(c.paidDown)})`).join('\n');
-  const msg=`Close out ${monthLabel}?\n\nBalance updates:\n${lines}\n\nTotal debt: ${fmt(totalBefore)} → ${fmt(totalAfter)}\nPaid down: ${fmt(totalDown)}\n\nThis will also reset your checklist, save a history snapshot, and advance your paycheck dates.`;
-  if(!confirm(msg)) return;
+  _closeoutData={monthLabel,changes,totalDown};
+  // Populate modal
+  document.getElementById('co-title').textContent='Close out '+monthLabel+'?';
+  document.getElementById('co-sub').textContent='Balance changes after this month\'s payments. Checklist resets & paycheck dates advance.';
+  document.getElementById('co-tbody').innerHTML=changes.map(c=>`
+    <tr>
+      <td>${escHtml(c.name)}</td>
+      <td>${fmt(c.oldBal)}</td>
+      <td>${fmt(c.newBal)}</td>
+      <td class="co-down">−${fmt(c.paidDown)}</td>
+    </tr>`).join('')||'<tr><td colspan="4" style="color:var(--text3);text-align:center;padding:12px 0;">No active debts</td></tr>';
+  document.getElementById('co-total-val').textContent=fmt(totalDown)+' paid down';
+  document.getElementById('co-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function cancelCloseout(evt) {
+  if(evt&&evt.target!==document.getElementById('co-overlay')) return;
+  document.getElementById('co-overlay').classList.remove('open');
+  document.body.style.overflow='';
+  _closeoutData=null;
+}
+function confirmCloseout() {
+  if(!_closeoutData) return;
+  const {monthLabel,changes,totalDown}=_closeoutData;
   // Apply balance changes
   changes.forEach(c=>{ const d=S.debts.find(x=>x.id===c.id); if(d) d.balance=c.newBal; });
   // Save snapshot
@@ -1131,6 +1223,10 @@ function closeOutMonth() {
   S.checks={};
   advancePaycheckDates();
   saveState(); dismissBanner(); renderAll();
+  // Close modal
+  document.getElementById('co-overlay').classList.remove('open');
+  document.body.style.overflow='';
+  _closeoutData=null;
   toast(`${monthLabel} closed — ${fmt(totalDown)} paid down 🎉`,'success');
 }
 
@@ -1202,12 +1298,18 @@ function renderPaycheckCards() {
       <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Paycheck</div><div class="pc-ftr-v-num">${fmt(pc.amount)}</div></div>
       <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Left over</div><div class="pc-ftr-v-num ${remCls}">${rem>=0?'+':'-'}${fmt(Math.abs(rem))}</div></div>
     </div>${attackHtml}</div>`:'';
+    const allPaid=its.length>0&&doneCnt===its.length;
     return `<div class="pc-card">
-      <div class="pc-hdr">
+      <div class="pc-hdr${allPaid?' all-paid':''}">
         <div class="pc-hdr-l"><div class="pc-dot" style="background:${pal.color};"></div>
           <div><div class="pc-name">${escHtml(pc.name)}</div><div class="pc-date" style="color:${pal.color};font-weight:600;">${dateLabel}</div></div>
         </div>
-        <div style="text-align:right;"><div class="pc-amt">${pc.amount>0?fmt(pc.amount):'—'}</div><div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px;">${doneCnt}/${its.length} paid</div></div>
+        <div style="text-align:right;">
+          <div class="pc-amt">${pc.amount>0?fmt(pc.amount):'—'}</div>
+          ${allPaid
+            ? `<div class="all-paid-badge" style="margin-top:2px;">✓ All paid!</div>`
+            : `<div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px;">${doneCnt}/${its.length} paid</div>`}
+        </div>
       </div>
       <div class="pc-items">${itsHtml}</div>${ftrHtml}
     </div>`;
