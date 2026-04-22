@@ -198,13 +198,30 @@ body::before {
 .pc-item-name { flex:1; color:var(--text2); }
 .pc-item-amt { font-family:var(--mono); font-size:12px; }
 .pc-empty-msg { font-size:12px; color:var(--text3); text-align:center; padding:14px 0; font-style:italic; }
-.pc-ftr { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; background:var(--surface2); }
+.pc-ftr { padding:10px 16px; background:var(--surface2); }
 .pc-ftr-lbl { font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text3); }
-.pc-ftr-vals { display:flex; gap:16px; }
+.pc-ftr-vals { display:flex; gap:16px; margin-bottom:0; }
 .pc-ftr-v { text-align:right; }
 .pc-ftr-v-lbl { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.04em; }
 .pc-ftr-v-num { font-family:var(--mono); font-size:13px; font-weight:500; margin-top:1px; }
 .pc-ftr-v-num.surplus { color:var(--green); } .pc-ftr-v-num.tight { color:var(--amber); } .pc-ftr-v-num.over { color:var(--red); }
+.pc-attack { font-size:13px; font-weight:700; color:var(--green); padding:8px 0 0; margin-top:8px; border-top:1px solid var(--border); display:flex; align-items:center; gap:6px; }
+.pc-attack.over { color:var(--amber); }
+.pc-attack svg { flex-shrink:0; }
+
+/* ── NEXT PAYCHECK STRIP (Home) ── */
+.next-pc { background:var(--surface); border:1px solid var(--border2); border-radius:var(--r-lg); padding:14px 16px; margin-bottom:16px; }
+.next-pc-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.next-pc-label { font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--text3); }
+.next-pc-date { font-size:12px; font-family:var(--mono); color:var(--text2); }
+.next-pc-name { font-size:15px; font-weight:700; margin-bottom:2px; }
+.next-pc-amt { font-family:var(--mono); font-size:13px; color:var(--text2); }
+.next-pc-bills { margin:10px 0; display:flex; flex-direction:column; gap:4px; }
+.next-pc-bill { display:flex; justify-content:space-between; font-size:13px; color:var(--text2); }
+.next-pc-bill span:last-child { font-family:var(--mono); color:var(--text3); }
+.next-pc-directive { display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-radius:var(--r); background:var(--green-dim); border:1px solid rgba(76,175,125,0.2); margin-top:10px; }
+.next-pc-directive-lbl { font-size:12px; color:var(--text2); }
+.next-pc-directive-val { font-size:14px; font-weight:700; color:var(--green); font-family:var(--mono); }
 
 .unassigned-box { background:var(--surface2); border:1px solid var(--border); border-radius:var(--r); padding:12px 14px; margin-bottom:14px; }
 .unassigned-lbl { font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text3); margin-bottom:8px; }
@@ -417,6 +434,9 @@ body::before {
 
   <div class="page-title">Zero by <span id="goal-display">Dec 31.</span></div>
   <p class="page-sub">Track every dollar — income, debt, and budget.</p>
+
+  <!-- Next paycheck guide -->
+  <div id="home-next-pc"></div>
 
   <!-- This month quick view -->
   <div id="home-this-month"></div>
@@ -819,10 +839,48 @@ function renderHome() {
       <div class="dpr-stats"><span>${p}% paid off</span><span>${projStr}</span></div>
     </div>`;
   }).join('');
+  // Next paycheck guide
+  renderNextPc();
   // This month card
   renderHomeThisMonth();
   // Chart
   renderChart();
+}
+
+function renderNextPc() {
+  const el=document.getElementById('home-next-pc');
+  if(!el) return;
+  if(!S.income.length){ el.innerHTML=''; return; }
+  // Pick the soonest-dated paycheck
+  const sorted=[...S.income].sort((a,b)=>(!a.nextDate?1:!b.nextDate?-1:a.nextDate.localeCompare(b.nextDate)));
+  const p=sorted[0];
+  if(!p){ el.innerHTML=''; return; }
+  // Bills assigned to this paycheck
+  const items=allExpItems();
+  const assigned=items.filter(i=>S.assignments[i.id]===p.id);
+  const totalBills=assigned.reduce((s,i)=>s+i.amount,0);
+  const rem=p.amount-totalBills;
+  const attackDebt=S.debts.filter(d=>d.balance>0).sort((a,b)=>b.apr-a.apr)[0];
+  const billsHtml=assigned.length
+    ? assigned.map(i=>`<div class="next-pc-bill"><span>${escHtml(i.label)}</span><span>-${fmt(i.amount)}</span></div>`).join('')
+    : `<div style="font-size:12px;color:var(--text3);font-style:italic;">No bills assigned yet — go to Pay tab to assign</div>`;
+  const directiveHtml=(rem>0&&attackDebt)
+    ? `<div class="next-pc-directive"><span class="next-pc-directive-lbl">Then put toward ${escHtml(attackDebt.name)}</span><span class="next-pc-directive-val">${fmt(rem)}</span></div>`
+    : rem<0
+    ? `<div class="next-pc-directive" style="background:rgba(212,137,58,0.1);border-color:rgba(212,137,58,0.2);"><span class="next-pc-directive-lbl">⚠ Over budget by</span><span class="next-pc-directive-val" style="color:var(--amber)">${fmt(Math.abs(rem))}</span></div>`
+    : '';
+  el.innerHTML=`<div class="next-pc">
+    <div class="next-pc-hdr">
+      <span class="next-pc-label">Next paycheck</span>
+      <span class="next-pc-date">${p.nextDate?fmtDate(p.nextDate):'—'}</span>
+    </div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;">
+      <div class="next-pc-name">${escHtml(p.name)}</div>
+      <div class="next-pc-amt">${p.amount>0?fmt(p.amount)+' arriving':'amount not set'}</div>
+    </div>
+    <div class="next-pc-bills">${billsHtml}</div>
+    ${directiveHtml}
+  </div>`;
 }
 
 function renderHomeThisMonth() {
@@ -982,6 +1040,7 @@ function renderPaycheckCards() {
   items.forEach(item=>{ const pcId=S.assignments[item.id]; if(pcId&&pcMap[pcId]) pcMap[pcId].push(item); });
   const assignedIds=new Set(Object.keys(S.assignments));
   const unassigned=items.filter(i=>!assignedIds.has(i.id));
+  const attackDebt=S.debts.filter(d=>d.balance>0).sort((a,b)=>b.apr-a.apr)[0];
   document.getElementById('pay-pc-grid').innerHTML=sorted.map((p,idx)=>{
     const pal=PC_PAL[idx%PC_PAL.length];
     const its=pcMap[p.id];
@@ -990,15 +1049,21 @@ function renderPaycheckCards() {
     const remCls=rem>=50?'surplus':rem>=0?'tight':'over';
     const itsHtml=its.length
       ? its.map(i=>`<div class="pc-item"><span class="pc-item-cat">${escHtml(i.cat)}</span><span class="pc-item-name">${escHtml(i.label)}</span><span class="pc-item-amt">-${fmt(i.amount)}</span></div>`).join('')
-      : `<div class="pc-empty-msg">No items assigned yet</div>`;
-    const ftrHtml=p.amount>0?`<div class="pc-ftr"><div class="pc-ftr-lbl">Summary</div><div class="pc-ftr-vals">
-      <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Assigned</div><div class="pc-ftr-v-num">${fmt(assigned)}</div></div>
-      <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Remaining</div><div class="pc-ftr-v-num ${remCls}">${rem>=0?'+':'-'}${fmt(rem)}</div></div>
-    </div></div>`:'';
+      : `<div class="pc-empty-msg">No items assigned — tap "+ assign" on any bill below</div>`;
+    let attackHtml='';
+    if(p.amount>0){
+      if(rem>0&&attackDebt) attackHtml=`<div class="pc-attack"><svg width="12" height="12" viewBox="0 0 12 12"><polyline points="2,6 6,2 10,6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="6" y1="2" x2="6" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Put ${fmt(rem)} toward ${escHtml(attackDebt.name)}</div>`;
+      else if(rem<0) attackHtml=`<div class="pc-attack over">⚠ Over by ${fmt(Math.abs(rem))} — move a bill to another paycheck</div>`;
+    }
+    const ftrHtml=p.amount>0?`<div class="pc-ftr"><div class="pc-ftr-vals">
+      <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Bills</div><div class="pc-ftr-v-num">${fmt(assigned)}</div></div>
+      <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Paycheck</div><div class="pc-ftr-v-num">${fmt(p.amount)}</div></div>
+      <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Left over</div><div class="pc-ftr-v-num ${remCls}">${rem>=0?'+':'-'}${fmt(Math.abs(rem))}</div></div>
+    </div>${attackHtml}</div>`:'';
     return `<div class="pc-card">
       <div class="pc-hdr">
         <div class="pc-hdr-l"><div class="pc-dot" style="background:${pal.color};"></div>
-          <div><div class="pc-name">${escHtml(p.name)}</div><div class="pc-date">${fmtDate(p.nextDate)}</div></div>
+          <div><div class="pc-name">${escHtml(p.name)}</div><div class="pc-date">${p.nextDate?fmtDate(p.nextDate):'set date in Settings'}</div></div>
         </div>
         <div class="pc-amt">${p.amount>0?fmt(p.amount):'—'}</div>
       </div>
