@@ -137,6 +137,68 @@ body::before {
 .close-month-btn { width:100%; margin-top:14px; padding:12px; border-radius:var(--r); background:var(--surface2); border:1px solid var(--border2); color:var(--text2); font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; transition:background 0.15s,color 0.15s; letter-spacing:0.03em; }
 .close-month-btn:hover { background:var(--green-dim); border-color:rgba(76,175,125,0.3); color:var(--green); }
 
+/* ── SETUP GUIDE ── */
+.setup-guide { background:var(--surface); border:1px solid rgba(91,143,232,0.35); border-radius:var(--r-lg); padding:16px 18px; margin-bottom:18px; }
+.setup-guide-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.setup-guide-title { font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--blue); }
+.setup-guide-bar { height:4px; background:rgba(255,255,255,0.06); border-radius:99px; overflow:hidden; width:80px; }
+.setup-guide-bar-fill { height:100%; background:var(--blue); border-radius:99px; transition:width 0.4s; }
+.setup-step { display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--border); }
+.setup-step:last-child { border-bottom:none; padding-bottom:0; }
+.setup-step-num { width:22px; height:22px; border-radius:50%; border:1.5px solid var(--border2); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; color:var(--text3); font-family:var(--mono); }
+.setup-step.done .setup-step-num { background:var(--green); border-color:var(--green); color:#000; font-size:10px; }
+.setup-step-body { flex:1; min-width:0; }
+.setup-step-label { font-size:13px; font-weight:600; }
+.setup-step.done .setup-step-label { color:var(--text3); text-decoration:line-through; }
+.setup-step-detail { font-size:11px; color:var(--text3); margin-top:1px; }
+
+/* ── MONTH PLAN (Home) ── */
+.mp-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); margin-bottom:10px; overflow:hidden; }
+.mp-hdr { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border); }
+.mp-hdr-l { display:flex; align-items:center; gap:10px; }
+.mp-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.mp-name { font-size:14px; font-weight:700; }
+.mp-date { font-size:11px; font-family:var(--mono); margin-top:2px; font-weight:600; }
+.mp-progress { font-size:11px; font-family:var(--mono); color:var(--text3); flex-shrink:0; }
+.mp-bills { padding:0 16px; }
+.mp-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); cursor:pointer; user-select:none; }
+.mp-row:last-child { border-bottom:none; }
+.mp-row.done { opacity:0.38; }
+.mp-row.done .mp-lbl { text-decoration:line-through; }
+.mp-cb { width:19px; height:19px; border-radius:5px; border:1.5px solid var(--border2); flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+.mp-row.done .mp-cb { background:var(--green); border-color:var(--green); }
+.mp-cb-icon { display:none; width:10px; height:10px; }
+.mp-row.done .mp-cb-icon { display:block; }
+.mp-lbl { flex:1; font-size:14px; }
+.mp-amt { font-family:var(--mono); font-size:13px; font-weight:500; flex-shrink:0; }
+.mp-empty { font-size:12px; color:var(--text3); text-align:center; padding:14px 0; font-style:italic; }
+.mp-footer { display:flex; gap:16px; flex-wrap:wrap; padding:9px 16px; background:var(--surface2); font-size:11px; font-family:var(--mono); color:var(--text3); }
+.mp-footer .surplus { color:var(--green); }
+.mp-footer .over { color:var(--amber); }
+.mp-directive { padding:8px 16px; font-size:13px; font-weight:700; color:var(--green); }
+.mp-directive.over { color:var(--amber); }
+.mp-close-btn { width:100%; margin-top:14px; padding:12px; border-radius:var(--r); background:var(--surface2); border:1px solid var(--border2); color:var(--text2); font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; transition:background 0.15s,color 0.15s; }
+.mp-close-btn:hover { background:var(--green-dim); border-color:rgba(76,175,125,0.3); color:var(--green); }
+
+/* ── DUE DATE EDITOR ── */
+.due-ed-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+.due-ed-row:last-child { border-bottom:none; }
+.due-ed-name { flex:1; font-size:14px; }
+.due-ed-cat { font-size:11px; color:var(--text3); font-family:var(--mono); min-width:52px; }
+.due-ed-input { display:flex; align-items:center; gap:5px; }
+.due-ed-field { width:54px; text-align:center; background:var(--surface3); border:1px solid var(--border2); border-radius:var(--r); padding:7px 6px; color:var(--text); font-family:var(--mono); font-size:15px; outline:none; }
+.due-ed-field:focus { border-color:var(--blue); }
+.due-ed-suffix { font-size:11px; color:var(--text3); font-family:var(--mono); }
+
+/* ── PAYCHECK CARD CHECKBOXES ── */
+.pc-item-check { cursor:pointer; user-select:none; }
+.pc-item-check.done { opacity:0.38; }
+.pc-item-check.done .pc-item-name { text-decoration:line-through; }
+.pc-cb { width:18px; height:18px; border-radius:5px; border:1.5px solid var(--border2); flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+.pc-item-check.done .pc-cb { background:var(--green); border-color:var(--green); }
+.pc-cb-icon { display:none; width:9px; height:9px; }
+.pc-item-check.done .pc-cb-icon { display:block; }
+
 /* ── COUNTDOWN ── */
 .cd-strip { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:12px 16px; display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin-bottom:20px; }
 .cd-lbl { font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text3); }
@@ -436,11 +498,11 @@ body::before {
   <div class="page-title">Zero by <span id="goal-display">Dec 31.</span></div>
   <p class="page-sub">Track every dollar — income, debt, and budget.</p>
 
-  <!-- Next paycheck guide -->
-  <div id="home-next-pc"></div>
+  <!-- Setup guide (hidden once complete) -->
+  <div id="home-setup-guide"></div>
 
-  <!-- This month quick view -->
-  <div id="home-this-month"></div>
+  <!-- Month plan with tappable checkboxes -->
+  <div id="home-month-plan"></div>
 
   <div class="cd-strip">
     <div class="cd-lbl">Days left</div>
@@ -474,34 +536,40 @@ body::before {
 <!-- ── PAY ── -->
 <div class="tab-panel" id="panel-pay">
   <div class="page-title">Pay <span>Plan</span></div>
-  <p class="page-sub">See exactly what to pay from each paycheck — then check it off below.</p>
+  <p class="page-sub">Check off bills as you pay them each paycheck.</p>
 
-  <!-- Paycheck allocation cards -->
+  <!-- Due date editor (hidden by default) -->
+  <div id="due-editor-panel" class="panel" style="display:none;">
+    <div class="panel-title">Set Bill Due Dates</div>
+    <div class="panel-sub">Enter the day of the month each bill is due. Bills will auto-assign to the right paycheck automatically.</div>
+    <div id="due-editor-list"></div>
+    <div class="btn-row" style="margin-top:14px;">
+      <button class="btn btn-primary" onclick="saveDueDates()">Save &amp; auto-assign</button>
+      <button class="btn btn-ghost" onclick="hideDueEditor()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Paycheck plan with checkboxes -->
   <div class="section">
     <div class="section-hdr">
-      <div class="section-label">Your Paychecks</div>
-      <button class="btn btn-ghost btn-sm" onclick="autoAssignByDueDate()">Auto-assign by due date</button>
+      <div class="section-label">This Month</div>
+      <button class="btn btn-ghost btn-sm" onclick="showDueEditor()">Set due dates</button>
     </div>
     <div class="pc-grid" id="pay-pc-grid"></div>
     <div id="pay-unassigned"></div>
   </div>
 
-  <!-- Monthly checklist -->
+  <!-- Manage bills (add / edit / remove) -->
   <div class="section">
     <div class="section-hdr">
-      <div class="section-label">Monthly Checklist</div>
-      <div style="text-align:right;">
-        <div class="cl-prog-txt"><span id="cl-count">0/0</span> done</div>
-        <div class="cl-prog-bar"><div class="cl-prog-fill" id="cl-prog" style="width:0%"></div></div>
+      <div class="section-label">Manage Bills</div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-ghost btn-sm" onclick="addCategory()">+ Category</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetChecks()">Reset</button>
       </div>
     </div>
-    <div class="cl-summary" id="pay-cl-summary"></div>
     <div id="pay-cats"></div>
-    <div class="btn-row" style="margin-top:12px;">
-      <button class="btn btn-ghost btn-sm" onclick="addCategory()">+ Add category</button>
-      <button class="btn btn-ghost btn-sm" onclick="resetChecks()">Reset checklist</button>
-    </div>
-    <div class="note" style="margin-top:12px;">Tap any amount to edit it and set a due date. Once due dates are set, use "Auto-assign by due date" above to assign bills to the right paycheck automatically.</div>
+    <div class="note" style="margin-top:10px;">Tap any amount to edit label, amount, or due date. Tap the colored badge to manually change which paycheck covers a bill.</div>
   </div>
 </div><!-- /pay -->
 
@@ -841,89 +909,128 @@ function renderHome() {
       <div class="dpr-stats"><span>${p}% paid off</span><span>${projStr}</span></div>
     </div>`;
   }).join('');
-  // Next paycheck guide
-  renderNextPc();
-  // This month card
-  renderHomeThisMonth();
+  // Setup guide + month plan
+  renderSetupGuide();
+  renderMonthPlan();
   // Chart
   renderChart();
 }
 
-function renderNextPc() {
-  const el=document.getElementById('home-next-pc');
+// ── UNIFIED CHECK TOGGLE ──
+function doCheck(id) {
+  S.checks[id]=!S.checks[id];
+  if(!S.checks[id]) delete S.checks[id];
+  saveState(); renderAll();
+}
+
+// ── SILENT AUTO-ASSIGN (internal) ──
+function _autoAssign() {
+  const slots=genPaycheckSlots().filter(s=>s.date);
+  if(!slots.length) return;
+  const now=new Date();
+  S.expenses.forEach(cat=>cat.items.forEach(item=>{
+    if(!item.dueDay) return;
+    const due=new Date(now.getFullYear(),now.getMonth(),item.dueDay);
+    let target=null;
+    for(const slot of slots){ if(slot.date<=due) target=slot; else break; }
+    if(!target) target=slots[0];
+    S.assignments[item.id]=target.key;
+  }));
+}
+
+// ── SETUP GUIDE (Home) ──
+function renderSetupGuide() {
+  const el=document.getElementById('home-setup-guide');
+  if(!el) return;
+  const hasIncome=S.income.length>0&&S.income.some(p=>p.amount>0&&p.nextDate);
+  const hasBills=S.expenses.some(c=>c.items.length>0);
+  const hasDueDates=S.expenses.some(c=>c.items.some(i=>i.dueDay));
+  const steps=[
+    {done:hasIncome, label:'Add your paycheck', detail:'Name, amount & next pay date', action:'setupGo(0)'},
+    {done:hasBills,  label:'Add your bills',    detail:'Rent, utilities, subscriptions…', action:'setupGo(1)'},
+    {done:hasDueDates,label:'Set bill due dates', detail:'The app figures out which paycheck pays what', action:'setupGo(2)'},
+  ];
+  if(steps.every(s=>s.done)){ el.innerHTML=''; return; }
+  const done=steps.filter(s=>s.done).length;
+  el.innerHTML=`<div class="setup-guide">
+    <div class="setup-guide-hdr">
+      <span class="setup-guide-title">Setup (${done}/${steps.length} done)</span>
+      <div class="setup-guide-bar"><div class="setup-guide-bar-fill" style="width:${Math.round(done/steps.length*100)}%"></div></div>
+    </div>
+    ${steps.map((s,i)=>`<div class="setup-step${s.done?' done':''}">
+      <div class="setup-step-num">${s.done?'✓':(i+1)}</div>
+      <div class="setup-step-body"><div class="setup-step-label">${s.label}</div><div class="setup-step-detail">${s.detail}</div></div>
+      ${!s.done?`<button class="btn btn-ghost btn-sm" onclick="${s.action}">Go →</button>`:''}
+    </div>`).join('')}
+  </div>`;
+}
+function setupGo(step) {
+  if(step===0) switchTab('settings');
+  else if(step===1) switchTab('pay');
+  else if(step===2){ switchTab('pay'); setTimeout(showDueEditor,120); }
+}
+
+// ── MONTH PLAN (Home) ──
+function renderMonthPlan() {
+  const el=document.getElementById('home-month-plan');
   if(!el) return;
   if(!S.income.length){ el.innerHTML=''; return; }
   const slots=genPaycheckSlots();
   if(!slots.length){ el.innerHTML=''; return; }
-  // Pick next upcoming slot (soonest date >= today or first slot if all past)
-  const today=new Date(); today.setHours(0,0,0,0);
-  const slot=slots.find(s=>s.date&&s.date>=today)||slots[0];
-  if(!slot){ el.innerHTML=''; return; }
   const items=allExpItems();
-  const assigned=items.filter(i=>S.assignments[i.id]===slot.key);
-  const totalBills=assigned.reduce((s,i)=>s+i.amount,0);
-  const rem=slot.pc.amount-totalBills;
+  const slotMap={}; slots.forEach(s=>{slotMap[s.key]=[];});
+  items.forEach(item=>{ const k=S.assignments[item.id]; if(k&&slotMap[k]!==undefined) slotMap[k].push(item); });
   const attackDebt=S.debts.filter(d=>d.balance>0).sort((a,b)=>b.apr-a.apr)[0];
-  const pal=PC_PAL[slot.pcIdx%PC_PAL.length];
-  const fullDateStr=slot.date?slot.date.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}):'—';
-  const billsHtml=assigned.length
-    ? assigned.map(i=>`<div class="next-pc-bill"><span>${escHtml(i.label)}</span><span>-${fmt(i.amount)}</span></div>`).join('')
-    : `<div style="font-size:12px;color:var(--text3);font-style:italic;">No bills assigned — go to Pay tab to assign bills to this check</div>`;
-  const directiveHtml=(rem>0&&attackDebt)
-    ? `<div class="next-pc-directive"><span class="next-pc-directive-lbl">Then put toward ${escHtml(attackDebt.name)}</span><span class="next-pc-directive-val">${fmt(rem)}</span></div>`
-    : rem<0
-    ? `<div class="next-pc-directive" style="background:rgba(212,137,58,0.1);border-color:rgba(212,137,58,0.2);"><span class="next-pc-directive-lbl">⚠ Over budget by</span><span class="next-pc-directive-val" style="color:var(--amber)">${fmt(Math.abs(rem))}</span></div>`
-    : '';
-  el.innerHTML=`<div class="next-pc">
-    <div class="next-pc-hdr">
-      <span class="next-pc-label">Next paycheck</span>
-      <span class="next-pc-date" style="color:${pal.color};font-weight:600;">${fullDateStr}</span>
-    </div>
-    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;">
-      <div class="next-pc-name">${escHtml(slot.pc.name)}</div>
-      <div class="next-pc-amt">${slot.pc.amount>0?fmt(slot.pc.amount)+' arriving':'amount not set'}</div>
-    </div>
-    <div class="next-pc-bills">${billsHtml}</div>
-    ${directiveHtml}
-  </div>`;
-}
-
-function renderHomeThisMonth() {
-  const el=document.getElementById('home-this-month');
-  if(!el) return;
-  const all=allExpItems();
-  if(!all.length){ el.innerHTML=''; return; }
-  const unchecked=all.filter(i=>!S.checks[i.id]);
-  const checked=all.filter(i=>!!S.checks[i.id]);
-  const done=checked.length;
-  const pctDone=Math.round(done/all.length*100);
-  const totalLeft=unchecked.reduce((s,i)=>s+i.amount,0);
-  const row=i=>`
-    <div class="tm-row${S.checks[i.id]?' done':''}" onclick="quickCheck('${i.id}')">
-      <div class="tm-cb"><svg class="tm-cb-icon" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0d0d0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-      <span class="tm-label">${escHtml(i.label)}</span>
-      <span class="tm-row-amt">${fmt(i.amount)}</span>
-    </div>`;
-  const rowsHtml=all.length===0
-    ? `<div class="tm-done">No bills yet — add them in the Pay tab.</div>`
-    : unchecked.map(row).join('')+
-      (checked.length?`<div class="tm-divider">Paid ✓</div>`+checked.map(row).join(''):'');
-  const monthLabel=new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'});
-  el.innerHTML=`
-    <div class="tm-card">
-      <div class="tm-hdr">
-        <div><div class="tm-title">This Month</div><div class="tm-sub">${done}/${all.length} paid${unchecked.length>0?' · '+fmt(totalLeft)+' remaining':' · all done!'}</div></div>
+  const today=new Date(); today.setHours(0,0,0,0);
+  const chk=`<svg class="mp-cb-icon" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0d0d0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const cards=slots.map(slot=>{
+    const {key,date,pc,pcIdx}=slot;
+    const pal=PC_PAL[pcIdx%PC_PAL.length];
+    const its=slotMap[key]||[];
+    const totalBills=its.reduce((s,i)=>s+i.amount,0);
+    const rem=pc.amount-totalBills;
+    const doneCnt=its.filter(i=>S.checks[i.id]).length;
+    const dateStr=date?date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'—';
+    const billRows=its.length
+      ? its.map(i=>{
+          const done=!!S.checks[i.id];
+          const dc=i.dueDay?`<span class="due-chip">due ${ordinal(i.dueDay)}</span>`:'';
+          return `<div class="mp-row${done?' done':''}" onclick="doCheck('${i.id}')">
+            <div class="mp-cb">${chk}</div>
+            <span class="mp-lbl">${escHtml(i.label)}</span>${dc}
+            <span class="mp-amt">${done?'✓':'-'+fmt(i.amount)}</span>
+          </div>`;
+        }).join('')
+      : `<div class="mp-empty">No bills assigned — tap "Set due dates" in Pay tab</div>`;
+    const directive=rem>0&&attackDebt
+      ? `<div class="mp-directive">→ Put ${fmt(rem)} toward ${escHtml(attackDebt.name)}</div>`
+      : rem<0?`<div class="mp-directive over">⚠ Over budget by ${fmt(Math.abs(rem))}</div>`:'';
+    return `<div class="mp-card">
+      <div class="mp-hdr">
+        <div class="mp-hdr-l">
+          <div class="mp-dot" style="background:${pal.color}"></div>
+          <div><div class="mp-name">${escHtml(pc.name)}</div><div class="mp-date" style="color:${pal.color}">${dateStr}</div></div>
+        </div>
+        <div class="mp-progress">${doneCnt}/${its.length} paid</div>
       </div>
-      <div class="tm-bar"><div class="tm-bar-fill" style="width:${pctDone}%;"></div></div>
-      ${rowsHtml}
-      <button class="close-month-btn" onclick="closeOutMonth()">Close out ${monthLabel} →</button>
+      <div class="mp-bills">${billRows}</div>
+      ${pc.amount>0?`<div class="mp-footer">
+        <span>Bills: ${fmt(totalBills)}</span>
+        <span>Paycheck: ${fmt(pc.amount)}</span>
+        <span class="${rem>=0?'surplus':'over'}">Left over: ${rem>=0?'+':''}${fmt(rem)}</span>
+      </div>${directive}`:''}
     </div>`;
-}
-
-function quickCheck(id) {
-  S.checks[id]=!S.checks[id];
-  if(!S.checks[id]) delete S.checks[id];
-  saveState(); renderHomeThisMonth();
+  }).join('');
+  const monthLabel=new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const allItems=allExpItems(), doneAll=allItems.filter(i=>S.checks[i.id]).length;
+  el.innerHTML=`<div style="margin-bottom:20px;">
+    <div class="section-hdr" style="margin-bottom:10px;">
+      <div class="section-label">${monthLabel} Plan</div>
+      <span style="font-size:11px;font-family:var(--mono);color:var(--text3);">${doneAll}/${allItems.length} paid</span>
+    </div>
+    ${cards}
+    <button class="mp-close-btn" onclick="closeOutMonth()">Close out ${monthLabel} →</button>
+  </div>`;
 }
 
 function renderChart() {
@@ -1049,7 +1156,7 @@ function genPaycheckSlots() {
 
 function renderPay() {
   renderPaycheckCards();
-  renderChecklist();
+  document.getElementById('pay-cats').innerHTML=S.expenses.map(cat=>renderCat(cat)).join('');
 }
 function renderPaycheckCards() {
   const pcs=S.income;
@@ -1064,6 +1171,7 @@ function renderPaycheckCards() {
   items.forEach(item=>{ const k=S.assignments[item.id]; if(k&&slotMap[k]!==undefined) slotMap[k].push(item); });
   const unassigned=items.filter(i=>!S.assignments[i.id]||slotMap[S.assignments[i.id]]===undefined);
   const attackDebt=S.debts.filter(d=>d.balance>0).sort((a,b)=>b.apr-a.apr)[0];
+  const chk=`<svg class="pc-cb-icon" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0d0d0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   document.getElementById('pay-pc-grid').innerHTML=slots.map(slot=>{
     const {key,date,pc,pcIdx}=slot;
     const pal=PC_PAL[pcIdx%PC_PAL.length];
@@ -1072,9 +1180,18 @@ function renderPaycheckCards() {
     const rem=pc.amount-assigned;
     const remCls=rem>=50?'surplus':rem>=0?'tight':'over';
     const dateLabel=date?date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'Set date in Settings';
+    const doneCnt=its.filter(i=>S.checks[i.id]).length;
     const itsHtml=its.length
-      ? its.map(i=>`<div class="pc-item"><span class="pc-item-cat">${escHtml(i.cat)}</span><span class="pc-item-name">${escHtml(i.label)}</span><span class="pc-item-amt">-${fmt(i.amount)}</span></div>`).join('')
-      : `<div class="pc-empty-msg">No bills assigned — tap "+ assign" on any bill below</div>`;
+      ? its.map(i=>{
+          const done=!!S.checks[i.id];
+          const dc=i.dueDay?`<span class="due-chip">due ${ordinal(i.dueDay)}</span>`:'';
+          return `<div class="pc-item pc-item-check${done?' done':''}" onclick="doCheck('${i.id}')">
+            <div class="pc-cb">${chk}</div>
+            <span class="pc-item-name">${escHtml(i.label)}</span>${dc}
+            <span class="pc-item-amt">${done?'✓':'-'+fmt(i.amount)}</span>
+          </div>`;
+        }).join('')
+      : `<div class="pc-empty-msg">No bills assigned — tap "Set due dates" above to auto-assign</div>`;
     let attackHtml='';
     if(pc.amount>0){
       if(rem>0&&attackDebt) attackHtml=`<div class="pc-attack"><svg width="12" height="12" viewBox="0 0 12 12"><polyline points="2,6 6,2 10,6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="6" y1="2" x2="6" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Put ${fmt(rem)} toward ${escHtml(attackDebt.name)}</div>`;
@@ -1090,51 +1207,67 @@ function renderPaycheckCards() {
         <div class="pc-hdr-l"><div class="pc-dot" style="background:${pal.color};"></div>
           <div><div class="pc-name">${escHtml(pc.name)}</div><div class="pc-date" style="color:${pal.color};font-weight:600;">${dateLabel}</div></div>
         </div>
-        <div class="pc-amt">${pc.amount>0?fmt(pc.amount):'—'}</div>
+        <div style="text-align:right;"><div class="pc-amt">${pc.amount>0?fmt(pc.amount):'—'}</div><div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px;">${doneCnt}/${its.length} paid</div></div>
       </div>
       <div class="pc-items">${itsHtml}</div>${ftrHtml}
     </div>`;
   }).join('');
+  // Unassigned bills with checkboxes
+  const chkU=`<svg class="pc-cb-icon" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0d0d0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   document.getElementById('pay-unassigned').innerHTML=unassigned.length?`
-    <div class="unassigned-box"><div class="unassigned-lbl">Not assigned to a paycheck (${unassigned.length})</div>
-      ${unassigned.map(i=>`<div class="unassigned-row"><span class="unassigned-name">${escHtml(i.label)}</span><span class="unassigned-amt">${fmt(i.amount)}</span></div>`).join('')}
+    <div class="unassigned-box">
+      <div class="unassigned-lbl">⚠ ${unassigned.length} bill${unassigned.length!==1?'s':''} not assigned — tap "Set due dates" to auto-assign</div>
+      ${unassigned.map(i=>{
+        const done=!!S.checks[i.id];
+        const dc=i.dueDay?`<span class="due-chip" style="color:var(--amber);">due ${ordinal(i.dueDay)} — no check</span>`:'<span class="due-chip" style="color:var(--amber);">no due date</span>';
+        return `<div class="unassigned-row${done?' done':''}" onclick="doCheck('${i.id}')" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
+          <div class="pc-cb">${chkU}</div>
+          <span class="unassigned-name" style="${done?'text-decoration:line-through':''};">${escHtml(i.label)}</span>
+          ${dc}
+          <span class="unassigned-amt">${fmt(i.amount)}</span>
+        </div>`;
+      }).join('')}
     </div>`:'';
 }
 function autoAssignByDueDate() {
   const slots=genPaycheckSlots().filter(s=>s.date);
   if(!slots.length){ toast('Set paycheck dates in Settings first','error'); return; }
-  const now=new Date();
-  let count=0;
-  S.expenses.forEach(cat=>cat.items.forEach(item=>{
-    if(!item.dueDay) return;
-    // Bill's due date in the current month
-    const due=new Date(now.getFullYear(),now.getMonth(),item.dueDay);
-    // Last paycheck that arrives on or before the due date
-    let target=null;
-    for(const slot of slots){ // sorted ascending by date
-      if(slot.date<=due) target=slot; else break;
-    }
-    // If due date is before the first paycheck, use the first one
-    if(!target) target=slots[0];
-    S.assignments[item.id]=target.key;
-    count++;
-  }));
-  if(!count){ toast('Add due dates to bills first — tap any amount to edit','error'); return; }
-  saveState(); renderPay();
-  toast(`Auto-assigned ${count} bill${count!==1?'s':''} by due date ✓`,'success');
+  const hasDueDates=S.expenses.some(c=>c.items.some(i=>i.dueDay));
+  if(!hasDueDates){ toast('Set due dates first — tap "Set due dates" in Pay tab','error'); return; }
+  _autoAssign(); saveState(); renderAll();
+  toast('Bills auto-assigned by due date ✓','success');
 }
-function renderChecklist() {
-  const all=allExpItems();
-  const done=all.filter(i=>!!S.checks[i.id]).length;
-  document.getElementById('cl-count').textContent=`${done}/${all.length}`;
-  document.getElementById('cl-prog').style.width=all.length?`${Math.round(done/all.length*100)}%`:'0%';
-  const totalExp=S.expenses.reduce((s,c)=>s+c.items.reduce((ss,i)=>ss+i.amount,0),0);
-  const monthlyInc=S.income.reduce((s,p)=>s+(p.amount*freqMult(p.frequency)),0);
-  const surplus=monthlyInc-totalExp;
-  document.getElementById('pay-cl-summary').innerHTML=`
-    <div class="cl-sum-item"><div class="cl-sum-lbl">Total bills</div><div class="cl-sum-val" style="color:var(--red)">${fmt(totalExp)}</div></div>
-    <div class="cl-sum-item"><div class="cl-sum-lbl">Income</div><div class="cl-sum-val" style="color:var(--blue)">${monthlyInc>0?fmt(monthlyInc):'—'}</div></div>
-    <div class="cl-sum-item"><div class="cl-sum-lbl">Surplus</div><div class="cl-sum-val" style="color:var(--${surplus>=0?'green':'red'})">${monthlyInc>0?(surplus>=0?'+':'-')+fmt(surplus):'—'}</div></div>`;
+function showDueEditor() {
+  const panel=document.getElementById('due-editor-panel');
+  if(!panel) return;
+  const items=allExpItems();
+  document.getElementById('due-editor-list').innerHTML=items.length
+    ? items.map(i=>`<div class="due-ed-row">
+        <span class="due-ed-cat">${escHtml(i.cat)}</span>
+        <span class="due-ed-name">${escHtml(i.label)}</span>
+        <div class="due-ed-input">
+          <input class="due-ed-field" type="number" data-id="${i.id}" value="${i.dueDay||''}" inputmode="numeric" placeholder="—" min="1" max="31">
+          <span class="due-ed-suffix">th</span>
+        </div>
+      </div>`).join('')
+    : '<div class="empty-state" style="padding:16px 0;">No bills yet — add some in Manage Bills below.</div>';
+  panel.style.display='block';
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function hideDueEditor() {
+  const panel=document.getElementById('due-editor-panel');
+  if(panel) panel.style.display='none';
+}
+function saveDueDates() {
+  document.querySelectorAll('.due-ed-field').forEach(input=>{
+    const id=input.dataset.id, val=parseInt(input.value)||0;
+    const dueDay=(val>=1&&val<=31)?val:null;
+    S.expenses.forEach(cat=>{ const item=cat.items.find(i=>i.id===id); if(item) item.dueDay=dueDay; });
+  });
+  _autoAssign(); saveState(); hideDueEditor(); renderAll();
+  toast('Due dates saved — bills auto-assigned ✓','success');
+}
+function renderChecklist() { // kept for compatibility — now a no-op; renderPay handles categories
   document.getElementById('pay-cats').innerHTML=S.expenses.map(cat=>renderCat(cat)).join('');
 }
 function renderCat(cat) {
@@ -1153,11 +1286,13 @@ function renderCat(cat) {
       </div>`;
     }
     const done=!!S.checks[item.id], badge=getAssignBadge(item.id);
-    const dueChip=item.dueDay?`<span class="due-chip">due ${ordinal(item.dueDay)}</span>`:'';
-    return `<div class="exp-row${done?' done':''}" onclick="toggleCheck('${item.id}',this)">
-      <div class="exp-cb"><svg class="chk-svg" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0d0d0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    const dueChip=item.dueDay
+      ?`<span class="due-chip">due ${ordinal(item.dueDay)}</span>`
+      :`<span class="due-chip" style="color:var(--text3);border-style:dashed;">+ due date</span>`;
+    return `<div class="exp-row${done?' done':''}">
+      <div class="exp-cb" style="pointer-events:none;${done?'background:var(--green);border-color:var(--green)':''}"><svg class="chk-svg" viewBox="0 0 10 10" fill="none" style="${done?'':'display:none'}"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0d0d0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <span class="exp-lbl">${escHtml(item.label)}</span>
-      ${dueChip}
+      <span onclick="startExpEdit('${cat.id}','${item.id}',event)" style="cursor:pointer;">${dueChip}</span>
       ${badge}
       <span class="exp-amt" onclick="startExpEdit('${cat.id}','${item.id}',event)">${fmt(item.amount)}</span>
     </div>`;
@@ -1196,13 +1331,7 @@ function cycleAssign(itemId, evt) {
   else S.assignments[itemId]=keys[idx+1];
   saveState(); renderPay();
 }
-function toggleCheck(id, el) {
-  S.checks[id]=!S.checks[id]; saveState();
-  el.classList.toggle('done');
-  const all=allExpItems(), done=all.filter(i=>!!S.checks[i.id]).length;
-  document.getElementById('cl-count').textContent=`${done}/${all.length}`;
-  document.getElementById('cl-prog').style.width=`${Math.round(done/all.length*100)}%`;
-}
+function toggleCheck(id) { doCheck(id); } // alias for backward compat
 function resetChecks() {
   if(!confirm('Reset all checklist items for the new month?')) return;
   S.checks={}; saveState(); renderPay(); toast('Checklist reset ✓');
@@ -1231,7 +1360,8 @@ function saveExpItem(catId,itemId) {
   item.amount=Math.max(0,toNum(document.getElementById('ei-amt').value));
   const d=parseInt(document.getElementById('ei-due').value)||0;
   item.dueDay=(d>=1&&d<=31)?d:null;
-  editingExpItem=null; saveState(); renderPay();
+  if(item.dueDay) _autoAssign();
+  editingExpItem=null; saveState(); renderAll();
 }
 function removeExpItem(catId,itemId) {
   const cat=S.expenses.find(c=>c.id===catId); if(!cat) return;
