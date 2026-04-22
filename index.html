@@ -264,6 +264,22 @@ body::before {
 .ds-val.warn { color:var(--red); }
 .debt-edit-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:12px; }
 
+/* ── SNOWBALL PLAN ── */
+.snowball-card { display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
+.snowball-card:last-child { border-bottom:none; }
+.sb-step { font-size:10px; font-weight:700; color:var(--text3); font-family:var(--mono); width:18px; text-align:center; flex-shrink:0; }
+.sb-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.sb-body { flex:1; min-width:0; }
+.sb-name { font-size:14px; font-weight:600; margin-bottom:3px; }
+.sb-pay { font-size:11px; color:var(--text2); font-family:var(--mono); }
+.sb-roll { color:var(--green); font-weight:600; }
+.sb-right { text-align:right; flex-shrink:0; }
+.sb-date { font-size:13px; font-weight:700; font-family:var(--mono); }
+.sb-dur { font-size:11px; font-family:var(--mono); margin-top:1px; }
+.sb-savings { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--green-dim); border:1px solid rgba(76,175,125,0.2); border-radius:var(--r); margin-top:12px; }
+.sb-savings-lbl { font-size:11px; color:var(--text2); text-transform:uppercase; letter-spacing:0.07em; font-weight:700; }
+.sb-savings-val { font-size:14px; font-weight:700; color:var(--green); font-family:var(--mono); }
+
 /* ── SETTINGS TAB ── */
 .settings-section { margin-bottom:24px; }
 .settings-section-title { font-size:13px; font-weight:700; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--border); color:var(--text2); }
@@ -509,6 +525,14 @@ body::before {
       </div>
     </div>
     <div id="debt-cards"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-hdr">
+      <div class="section-label">Snowball Plan</div>
+      <div style="font-size:11px;color:var(--text3);">freed payments roll forward</div>
+    </div>
+    <div id="snowball-cards"></div>
   </div>
 </div><!-- /debts -->
 
@@ -1042,6 +1066,65 @@ function removeExpItem(catId,itemId) {
   cat.items=cat.items.filter(i=>i.id!==itemId); saveState(); renderPay();
 }
 
+// ── SNOWBALL SIMULATION ──
+function snowballProject() {
+  const debts = S.debts.slice().sort((a,b)=>(a.order||99)-(b.order||99))
+    .map(d=>({ id:d.id, name:d.name, tag:d.tag, bal:d.balance, apr:d.apr, payment:d.payment, original:d.original }));
+  const results = debts.map(d=>({ ...d, payoffMonth: d.bal<=0?0:null, totalInterest:0, effectivePayment:d.payment }));
+  let month=0, freePool=0;
+  while(month<600) {
+    month++;
+    let allDone=true, firstActive=true;
+    for(let i=0;i<results.length;i++) {
+      const d=results[i];
+      if(d.bal<=0.005) continue;
+      allDone=false;
+      const mr=d.apr/100/12;
+      const interest=Math.round(d.bal*mr*100)/100;
+      d.totalInterest+=interest;
+      const pmt=d.payment+(firstActive?freePool:0);
+      if(firstActive) d.effectivePayment=Math.max(d.effectivePayment,pmt);
+      firstActive=false;
+      const paid=Math.min(pmt,d.bal+interest);
+      d.bal=Math.round((d.bal+interest-paid)*100)/100;
+      if(d.bal<=0.005){ d.bal=0; d.payoffMonth=month; freePool+=d.payment; }
+    }
+    if(allDone) break;
+  }
+  return results;
+}
+function renderSnowball() {
+  const goal=new Date(S.settings.goalDate+'T00:00:00');
+  const results=snowballProject();
+  const active=results.filter(d=>d.payoffMonth!==0); // exclude debts already paid before sim
+  if(!active.length){ document.getElementById('snowball-cards').innerHTML=''; return; }
+  // Baseline interest (no snowball — each debt pays its minimum throughout)
+  const baselineInterest=S.debts.reduce((sum,d)=>{ const p=project(d.balance,d.apr,d.payment); return sum+(p.ok?p.totalInterest:0); },0);
+  const snowballInterest=results.reduce((sum,d)=>sum+d.totalInterest,0);
+  const saved=Math.max(0,baselineInterest-snowballInterest);
+  document.getElementById('snowball-cards').innerHTML=active.map((d,i)=>{
+    const payoffDate=d.payoffMonth?( ()=>{ const dt=new Date(); dt.setMonth(dt.getMonth()+d.payoffMonth); return dt; } )():null;
+    const onTrack=payoffDate&&payoffDate<=goal;
+    const yr=d.payoffMonth?Math.floor(d.payoffMonth/12):0, mo=d.payoffMonth?d.payoffMonth%12:0;
+    const dur=[]; if(yr>0)dur.push(yr+'yr'); if(mo>0)dur.push(mo+'mo');
+    const dateStr=payoffDate?payoffDate.toLocaleDateString('en-US',{month:'short',year:'numeric'}):'—';
+    const color=BAR_COLORS[d.tag]||'#5c5a56';
+    const rolledIn=d.effectivePayment-d.payment;
+    return `<div class="snowball-card">
+      <div class="sb-step">${i+1}</div>
+      <div class="sb-dot" style="background:${color};"></div>
+      <div class="sb-body">
+        <div class="sb-name">${escHtml(d.name)}</div>
+        <div class="sb-pay">${fmt(d.effectivePayment)}/mo${rolledIn>0?` <span class="sb-roll">+${fmt(rolledIn)} rolled in</span>`:''}</div>
+      </div>
+      <div class="sb-right">
+        <div class="sb-date" style="color:${onTrack?'var(--green)':'var(--amber)'}">${dateStr}</div>
+        <div class="sb-dur" style="color:${onTrack?'var(--green)':'var(--amber)'}">${dur.join(' ')} ${onTrack?'✓':'⚠'}</div>
+      </div>
+    </div>`;
+  }).join('')+(saved>50?`<div class="sb-savings"><span class="sb-savings-lbl">Interest saved vs. minimums</span><span class="sb-savings-val">+${fmt(saved)}</span></div>`:'');
+}
+
 // ── DEBTS TAB ──
 function renderDebts() {
   const goal=new Date(S.settings.goalDate+'T00:00:00');
@@ -1100,6 +1183,7 @@ function renderDebts() {
       <div class="btn-row"><button class="btn btn-ghost btn-sm" onclick="startDebtEdit('${d.id}')">Edit</button></div>
     </div>`;
   }).join('')||'<div class="empty-state">No debts added yet.<br>Tap "+ Add debt" above to get started.</div>';
+  renderSnowball();
 }
 function startDebtEdit(id){ editingDebtId=id; renderDebts(); }
 function cancelDebtEdit(){ editingDebtId=null; renderDebts(); }
