@@ -455,6 +455,19 @@ body::before {
 .co-total-lbl { font-size:13px; font-weight:700; }
 .co-total-val { font-family:var(--mono); font-size:15px; font-weight:700; color:var(--green); }
 
+/* ── BUDGET CATEGORY ── */
+.cat-type-btn { padding:3px 9px; font-size:10px; font-weight:700; border-radius:99px; cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--text3); font-family:var(--font); letter-spacing:0.04em; transition:all 0.15s; }
+.cat-type-btn.is-budget { background:rgba(155,127,232,0.12); color:var(--purple); border-color:rgba(155,127,232,0.35); }
+.bgt-section { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:0; overflow:hidden; margin-bottom:14px; }
+.bgt-hdr { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); }
+.bgt-hdr-lbl { font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text3); }
+.bgt-hdr-total { font-size:12px; font-family:var(--mono); font-weight:600; color:var(--purple); }
+.bgt-row { display:flex; align-items:center; justify-content:space-between; padding:8px 14px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text2); }
+.bgt-row:last-child { border-bottom:none; }
+.bgt-row-cat { font-size:10px; color:var(--text3); font-family:var(--mono); min-width:54px; }
+.bgt-row-amt { font-family:var(--mono); font-size:12px; color:var(--text3); }
+.bgt-note { font-size:11px; color:var(--text3); text-align:center; padding:10px 14px; font-style:italic; }
+
 /* ── PAYCHECK CELEBRATION ── */
 .pc-hdr.all-paid { background:rgba(76,175,125,0.1); border-bottom-color:rgba(76,175,125,0.25); }
 .mp-hdr.all-paid { background:rgba(76,175,125,0.1); border-bottom-color:rgba(76,175,125,0.25); }
@@ -593,6 +606,7 @@ body::before {
     </div>
     <div class="pc-grid" id="pay-pc-grid"></div>
     <div id="pay-unassigned"></div>
+    <div id="pay-budget"></div>
   </div>
 
   <!-- Manage bills (add / edit / remove) -->
@@ -787,29 +801,29 @@ const DEFAULT = {
     { id:'pc1', name:'Paycheck 1', amount:0, frequency:'biweekly', nextDate:'' },
   ],
   expenses: [
-    { id:'cat1', name:'Debts', items:[
-      { id:'e1',  label:'Best Egg — minimum',      amount:441  },
-      { id:'e2',  label:'Best Egg — extra attack',  amount:1125 },
-      { id:'e3',  label:'GTE Financial — minimum',  amount:65   },
-      { id:'e4',  label:'Cody loan',                amount:100  },
+    { id:'cat1', name:'Debts', isBudget:false, items:[
+      { id:'e1',  label:'Best Egg — minimum',      amount:441,  dueDay:5  },
+      { id:'e2',  label:'Best Egg — extra attack',  amount:1125, dueDay:5  },
+      { id:'e3',  label:'GTE Financial — minimum',  amount:65,   dueDay:10 },
+      { id:'e4',  label:'Cody loan',                amount:100,  dueDay:8  },
     ]},
-    { id:'cat2', name:'Bills', items:[
-      { id:'e5',  label:'Rent + utilities', amount:935 },
-      { id:'e6',  label:'Car insurance',    amount:107 },
-      { id:'e7',  label:'Phone',            amount:35  },
-      { id:'e8',  label:'Subscriptions',    amount:17  },
-      { id:'e9',  label:'MMF',              amount:5   },
-      { id:'e10', label:'SunPass',          amount:20  },
+    { id:'cat2', name:'Bills', isBudget:false, items:[
+      { id:'e5',  label:'Rent + utilities', amount:935, dueDay:1  },
+      { id:'e6',  label:'Car insurance',    amount:107, dueDay:20 },
+      { id:'e7',  label:'Phone',            amount:35,  dueDay:22 },
+      { id:'e8',  label:'Subscriptions',    amount:17,  dueDay:15 },
+      { id:'e9',  label:'MMF',              amount:5,   dueDay:16 },
+      { id:'e10', label:'SunPass',          amount:20,  dueDay:25 },
     ]},
-    { id:'cat3', name:'Spending', items:[
+    { id:'cat3', name:'Spending', isBudget:true, items:[
       { id:'e11', label:'Groceries', amount:150 },
       { id:'e12', label:'Gas',       amount:130 },
       { id:'e13', label:'Pets',      amount:70  },
     ]},
-    { id:'cat4', name:'Savings', items:[
-      { id:'e14', label:'Transfer to savings', amount:500 },
+    { id:'cat4', name:'Savings', isBudget:false, items:[
+      { id:'e14', label:'Transfer to savings', amount:500, dueDay:18 },
     ]},
-    { id:'cat5', name:'Fun / Personal', items:[
+    { id:'cat5', name:'Fun / Personal', isBudget:true, items:[
       { id:'e15', label:'Fun / personal (cap)', amount:400 },
     ]},
   ],
@@ -825,7 +839,15 @@ function loadState() {
   try {
     const raw = localStorage.getItem('dft_v2');
     if (!raw) return deepClone(DEFAULT);
-    return deepMerge(deepClone(DEFAULT), JSON.parse(raw));
+    const state = deepMerge(deepClone(DEFAULT), JSON.parse(raw));
+    // Migration: if a category has no isBudget flag, apply smart default based on name
+    const budgetNames = ['spending','fun','personal','entertainment'];
+    state.expenses.forEach(cat => {
+      if (cat.isBudget === undefined) {
+        cat.isBudget = budgetNames.some(n => cat.name.toLowerCase().includes(n));
+      }
+    });
+    return state;
   } catch(e) { return deepClone(DEFAULT); }
 }
 function saveState() { localStorage.setItem('dft_v2', JSON.stringify(S)); debouncedPush(); }
@@ -850,7 +872,9 @@ function ordinal(n)  { const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)
 function escHtml(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function pct(c,o)    { if(!o)return 100; return Math.max(0,Math.min(100,Math.round((1-c/o)*100))); }
 function monthKey()  { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
-function allExpItems(){ return S.expenses.flatMap(c=>c.items.map(i=>({...i,cat:c.name}))); }
+function allExpItems(){ return S.expenses.flatMap(c=>c.items.map(i=>({...i,cat:c.name,isBudget:!!c.isBudget}))); }
+function allBillItems(){ return S.expenses.filter(c=>!c.isBudget).flatMap(c=>c.items.map(i=>({...i,cat:c.name}))); }
+function allBudgetItems(){ return S.expenses.filter(c=>c.isBudget).flatMap(c=>c.items.map(i=>({...i,cat:c.name,catId:c.id}))); }
 
 // ── PROJECTION ──
 function project(balance, apr, payment) {
@@ -994,14 +1018,17 @@ function _autoAssign() {
   const slots=genPaycheckSlots().filter(s=>s.date);
   if(!slots.length) return;
   const now=new Date();
-  S.expenses.forEach(cat=>cat.items.forEach(item=>{
-    if(!item.dueDay) return;
-    const due=new Date(now.getFullYear(),now.getMonth(),item.dueDay);
-    let target=null;
-    for(const slot of slots){ if(slot.date<=due) target=slot; else break; }
-    if(!target) target=slots[0];
-    S.assignments[item.id]=target.key;
-  }));
+  S.expenses.forEach(cat=>{
+    if(cat.isBudget) return; // budget categories don't get assigned to paychecks
+    cat.items.forEach(item=>{
+      if(!item.dueDay) return;
+      const due=new Date(now.getFullYear(),now.getMonth(),item.dueDay);
+      let target=null;
+      for(const slot of slots){ if(slot.date<=due) target=slot; else break; }
+      if(!target) target=slots[0];
+      S.assignments[item.id]=target.key;
+    });
+  });
 }
 
 // ── SETUP GUIDE (Home) ──
@@ -1009,8 +1036,8 @@ function renderSetupGuide() {
   const el=document.getElementById('home-setup-guide');
   if(!el) return;
   const hasIncome=S.income.length>0&&S.income.some(p=>p.amount>0&&p.nextDate);
-  const hasBills=S.expenses.some(c=>c.items.length>0);
-  const hasDueDates=S.expenses.some(c=>c.items.some(i=>i.dueDay));
+  const hasBills=S.expenses.some(c=>!c.isBudget&&c.items.length>0);
+  const hasDueDates=S.expenses.some(c=>!c.isBudget&&c.items.some(i=>i.dueDay));
   const steps=[
     {done:hasIncome, label:'Add your paycheck', detail:'Name, amount & next pay date', action:'setupGo(0)'},
     {done:hasBills,  label:'Add your bills',    detail:'Rent, utilities, subscriptions…', action:'setupGo(1)'},
@@ -1043,7 +1070,7 @@ function renderMonthPlan() {
   if(!S.income.length){ el.innerHTML=''; return; }
   const slots=genPaycheckSlots();
   if(!slots.length){ el.innerHTML=''; return; }
-  const items=allExpItems();
+  const items=allBillItems(); // only bill-type, no budget categories
   const slotMap={}; slots.forEach(s=>{slotMap[s.key]=[];});
   items.forEach(item=>{ const k=S.assignments[item.id]; if(k&&slotMap[k]!==undefined) slotMap[k].push(item); });
   const attackDebt=S.debts.filter(d=>d.balance>0).sort((a,b)=>b.apr-a.apr)[0];
@@ -1091,13 +1118,14 @@ function renderMonthPlan() {
     </div>`;
   }).join('');
   const monthLabel=new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'});
-  const allItems=allExpItems(), doneAll=allItems.filter(i=>S.checks[i.id]).length;
+  const billItems=allBillItems(), doneAll=billItems.filter(i=>S.checks[i.id]).length;
   el.innerHTML=`<div style="margin-bottom:20px;">
     <div class="section-hdr" style="margin-bottom:10px;">
       <div class="section-label">${monthLabel} Plan</div>
-      <span style="font-size:11px;font-family:var(--mono);color:var(--text3);">${doneAll}/${allItems.length} paid</span>
+      <span style="font-size:11px;font-family:var(--mono);color:var(--text3);">${doneAll}/${billItems.length} paid</span>
     </div>
     ${cards}
+    ${renderBudgetSection()}
     <button class="mp-close-btn" onclick="closeOutMonth()">Close out ${monthLabel} →</button>
   </div>`;
 }
@@ -1263,7 +1291,7 @@ function renderPaycheckCards() {
   }
   const slots=genPaycheckSlots();
   const slotMap={}; slots.forEach(s=>{slotMap[s.key]=[];});
-  const items=allExpItems();
+  const items=allBillItems(); // only bill-type items (not budget categories)
   items.forEach(item=>{ const k=S.assignments[item.id]; if(k&&slotMap[k]!==undefined) slotMap[k].push(item); });
   const unassigned=items.filter(i=>!S.assignments[i.id]||slotMap[S.assignments[i.id]]===undefined);
   const attackDebt=S.debts.filter(d=>d.balance>0).sort((a,b)=>b.apr-a.apr)[0];
@@ -1330,6 +1358,38 @@ function renderPaycheckCards() {
         </div>`;
       }).join('')}
     </div>`:'';
+  // Budget summary section
+  const budgetEl=document.getElementById('pay-budget');
+  if(budgetEl) budgetEl.innerHTML=renderBudgetSection();
+}
+function renderBudgetSection() {
+  const budgetCats=S.expenses.filter(c=>c.isBudget);
+  if(!budgetCats.length) return '';
+  const total=budgetCats.reduce((s,c)=>s+c.items.reduce((ss,i)=>ss+i.amount,0),0);
+  if(!total) return '';
+  const rows=budgetCats.flatMap(cat=>cat.items.map(i=>`
+    <div class="bgt-row">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="bgt-row-cat">${escHtml(cat.name)}</span>
+        <span>${escHtml(i.label)}</span>
+      </div>
+      <span class="bgt-row-amt">${fmt(i.amount)}/mo</span>
+    </div>`)).join('');
+  return `<div class="bgt-section">
+    <div class="bgt-hdr">
+      <span class="bgt-hdr-lbl">Monthly Budget Pool</span>
+      <span class="bgt-hdr-total">${fmt(total)}/mo</span>
+    </div>
+    ${rows}
+    <div class="bgt-note">These aren't tied to a specific paycheck — they're your monthly spending caps. Money comes from paycheck leftovers.</div>
+  </div>`;
+}
+function toggleCatBudget(catId) {
+  const cat=S.expenses.find(c=>c.id===catId); if(!cat) return;
+  cat.isBudget=!cat.isBudget;
+  // remove any paycheck assignments for items in this category if switching to budget
+  if(cat.isBudget) cat.items.forEach(i=>{ delete S.assignments[i.id]; });
+  saveState(); renderPay();
 }
 function autoAssignByDueDate() {
   const slots=genPaycheckSlots().filter(s=>s.date);
@@ -1342,7 +1402,7 @@ function autoAssignByDueDate() {
 function showDueEditor() {
   const panel=document.getElementById('due-editor-panel');
   if(!panel) return;
-  const items=allExpItems();
+  const items=allBillItems(); // budget categories don't need due dates
   document.getElementById('due-editor-list').innerHTML=items.length
     ? items.map(i=>`<div class="due-ed-row">
         <span class="due-ed-cat">${escHtml(i.cat)}</span>
@@ -1404,6 +1464,7 @@ function renderCat(cat) {
       <span class="cat-name">${escHtml(cat.name)}</span>
       <div class="cat-right">
         <span class="cat-total">${fmt(catTotal)}/mo</span>
+        <button class="cat-type-btn${cat.isBudget?' is-budget':''}" onclick="toggleCatBudget('${cat.id}')" title="${cat.isBudget?'Budget pool — no paycheck assignment':'Bill — assigned to a paycheck by due date'}">${cat.isBudget?'Budget':'Bills'}</button>
         <button class="btn btn-ghost btn-xs" onclick="addExpItem('${cat.id}')">+ item</button>
         <button class="btn btn-ghost btn-xs" style="color:var(--text3);" onclick="removeCat('${cat.id}')">×</button>
       </div>
