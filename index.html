@@ -851,19 +851,22 @@ function renderNextPc() {
   const el=document.getElementById('home-next-pc');
   if(!el) return;
   if(!S.income.length){ el.innerHTML=''; return; }
-  // Pick the soonest-dated paycheck
-  const sorted=[...S.income].sort((a,b)=>(!a.nextDate?1:!b.nextDate?-1:a.nextDate.localeCompare(b.nextDate)));
-  const p=sorted[0];
-  if(!p){ el.innerHTML=''; return; }
-  // Bills assigned to this paycheck
+  const slots=genPaycheckSlots();
+  if(!slots.length){ el.innerHTML=''; return; }
+  // Pick next upcoming slot (soonest date >= today or first slot if all past)
+  const today=new Date(); today.setHours(0,0,0,0);
+  const slot=slots.find(s=>s.date&&s.date>=today)||slots[0];
+  if(!slot){ el.innerHTML=''; return; }
   const items=allExpItems();
-  const assigned=items.filter(i=>S.assignments[i.id]===p.id);
+  const assigned=items.filter(i=>S.assignments[i.id]===slot.key);
   const totalBills=assigned.reduce((s,i)=>s+i.amount,0);
-  const rem=p.amount-totalBills;
+  const rem=slot.pc.amount-totalBills;
   const attackDebt=S.debts.filter(d=>d.balance>0).sort((a,b)=>b.apr-a.apr)[0];
+  const pal=PC_PAL[slot.pcIdx%PC_PAL.length];
+  const fullDateStr=slot.date?slot.date.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}):'—';
   const billsHtml=assigned.length
     ? assigned.map(i=>`<div class="next-pc-bill"><span>${escHtml(i.label)}</span><span>-${fmt(i.amount)}</span></div>`).join('')
-    : `<div style="font-size:12px;color:var(--text3);font-style:italic;">No bills assigned yet — go to Pay tab to assign</div>`;
+    : `<div style="font-size:12px;color:var(--text3);font-style:italic;">No bills assigned — go to Pay tab to assign bills to this check</div>`;
   const directiveHtml=(rem>0&&attackDebt)
     ? `<div class="next-pc-directive"><span class="next-pc-directive-lbl">Then put toward ${escHtml(attackDebt.name)}</span><span class="next-pc-directive-val">${fmt(rem)}</span></div>`
     : rem<0
@@ -872,11 +875,11 @@ function renderNextPc() {
   el.innerHTML=`<div class="next-pc">
     <div class="next-pc-hdr">
       <span class="next-pc-label">Next paycheck</span>
-      <span class="next-pc-date">${p.nextDate?fmtDate(p.nextDate):'—'}</span>
+      <span class="next-pc-date" style="color:${pal.color};font-weight:600;">${fullDateStr}</span>
     </div>
     <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;">
-      <div class="next-pc-name">${escHtml(p.name)}</div>
-      <div class="next-pc-amt">${p.amount>0?fmt(p.amount)+' arriving':'amount not set'}</div>
+      <div class="next-pc-name">${escHtml(slot.pc.name)}</div>
+      <div class="next-pc-amt">${slot.pc.amount>0?fmt(slot.pc.amount)+' arriving':'amount not set'}</div>
     </div>
     <div class="next-pc-bills">${billsHtml}</div>
     ${directiveHtml}
@@ -1023,6 +1026,25 @@ function closeOutMonth() {
 }
 
 // ── PAY TAB ──
+// Generate dated slots from income sources (biweekly → 2 slots, etc.)
+// Slot key: pcId for 1st occurrence, pcId+':1' for 2nd, pcId+':2' for 3rd …
+function genPaycheckSlots() {
+  const slots=[];
+  S.income.forEach(p=>{
+    if(!p.nextDate){ slots.push({key:p.id,slot:0,date:null,pc:p,pcIdx:S.income.indexOf(p)}); return; }
+    const d0=new Date(p.nextDate+'T00:00:00');
+    const period=p.frequency==='weekly'?7:p.frequency==='monthly'?null:p.frequency==='twice-monthly'?15:14;
+    const count=p.frequency==='monthly'||p.frequency==='twice-monthly'?1:2; // biweekly/weekly → 2 slots
+    for(let s=0;s<count;s++){
+      let d=new Date(d0);
+      if(period) d.setDate(d.getDate()+period*s);
+      slots.push({key:s===0?p.id:p.id+':'+s, slot:s, date:d, pc:p, pcIdx:S.income.indexOf(p)});
+    }
+  });
+  slots.sort((a,b)=>!a.date?1:!b.date?-1:a.date-b.date);
+  return slots;
+}
+
 function renderPay() {
   renderPaycheckCards();
   renderChecklist();
@@ -1034,38 +1056,39 @@ function renderPaycheckCards() {
     document.getElementById('pay-unassigned').innerHTML='';
     return;
   }
-  const sorted=[...pcs].sort((a,b)=>(!a.nextDate?1:!b.nextDate?-1:a.nextDate.localeCompare(b.nextDate)));
-  const pcMap={}; sorted.forEach(p=>{pcMap[p.id]=[];});
+  const slots=genPaycheckSlots();
+  const slotMap={}; slots.forEach(s=>{slotMap[s.key]=[];});
   const items=allExpItems();
-  items.forEach(item=>{ const pcId=S.assignments[item.id]; if(pcId&&pcMap[pcId]) pcMap[pcId].push(item); });
-  const assignedIds=new Set(Object.keys(S.assignments));
-  const unassigned=items.filter(i=>!assignedIds.has(i.id));
+  items.forEach(item=>{ const k=S.assignments[item.id]; if(k&&slotMap[k]!==undefined) slotMap[k].push(item); });
+  const unassigned=items.filter(i=>!S.assignments[i.id]||slotMap[S.assignments[i.id]]===undefined);
   const attackDebt=S.debts.filter(d=>d.balance>0).sort((a,b)=>b.apr-a.apr)[0];
-  document.getElementById('pay-pc-grid').innerHTML=sorted.map((p,idx)=>{
-    const pal=PC_PAL[idx%PC_PAL.length];
-    const its=pcMap[p.id];
+  document.getElementById('pay-pc-grid').innerHTML=slots.map(slot=>{
+    const {key,date,pc,pcIdx}=slot;
+    const pal=PC_PAL[pcIdx%PC_PAL.length];
+    const its=slotMap[key]||[];
     const assigned=its.reduce((s,i)=>s+i.amount,0);
-    const rem=p.amount-assigned;
+    const rem=pc.amount-assigned;
     const remCls=rem>=50?'surplus':rem>=0?'tight':'over';
+    const dateLabel=date?date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'Set date in Settings';
     const itsHtml=its.length
       ? its.map(i=>`<div class="pc-item"><span class="pc-item-cat">${escHtml(i.cat)}</span><span class="pc-item-name">${escHtml(i.label)}</span><span class="pc-item-amt">-${fmt(i.amount)}</span></div>`).join('')
-      : `<div class="pc-empty-msg">No items assigned — tap "+ assign" on any bill below</div>`;
+      : `<div class="pc-empty-msg">No bills assigned — tap "+ assign" on any bill below</div>`;
     let attackHtml='';
-    if(p.amount>0){
+    if(pc.amount>0){
       if(rem>0&&attackDebt) attackHtml=`<div class="pc-attack"><svg width="12" height="12" viewBox="0 0 12 12"><polyline points="2,6 6,2 10,6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="6" y1="2" x2="6" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Put ${fmt(rem)} toward ${escHtml(attackDebt.name)}</div>`;
-      else if(rem<0) attackHtml=`<div class="pc-attack over">⚠ Over by ${fmt(Math.abs(rem))} — move a bill to another paycheck</div>`;
+      else if(rem<0) attackHtml=`<div class="pc-attack over">⚠ Over by ${fmt(Math.abs(rem))} — move a bill to another check</div>`;
     }
-    const ftrHtml=p.amount>0?`<div class="pc-ftr"><div class="pc-ftr-vals">
+    const ftrHtml=pc.amount>0?`<div class="pc-ftr"><div class="pc-ftr-vals">
       <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Bills</div><div class="pc-ftr-v-num">${fmt(assigned)}</div></div>
-      <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Paycheck</div><div class="pc-ftr-v-num">${fmt(p.amount)}</div></div>
+      <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Paycheck</div><div class="pc-ftr-v-num">${fmt(pc.amount)}</div></div>
       <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Left over</div><div class="pc-ftr-v-num ${remCls}">${rem>=0?'+':'-'}${fmt(Math.abs(rem))}</div></div>
     </div>${attackHtml}</div>`:'';
     return `<div class="pc-card">
       <div class="pc-hdr">
         <div class="pc-hdr-l"><div class="pc-dot" style="background:${pal.color};"></div>
-          <div><div class="pc-name">${escHtml(p.name)}</div><div class="pc-date">${p.nextDate?fmtDate(p.nextDate):'set date in Settings'}</div></div>
+          <div><div class="pc-name">${escHtml(pc.name)}</div><div class="pc-date" style="color:${pal.color};font-weight:600;">${dateLabel}</div></div>
         </div>
-        <div class="pc-amt">${p.amount>0?fmt(p.amount):'—'}</div>
+        <div class="pc-amt">${pc.amount>0?fmt(pc.amount):'—'}</div>
       </div>
       <div class="pc-items">${itsHtml}</div>${ftrHtml}
     </div>`;
@@ -1124,22 +1147,25 @@ function renderCat(cat) {
   </div>`;
 }
 function getAssignBadge(itemId) {
-  const pcId=S.assignments[itemId];
-  if(!pcId) return `<span class="assign-badge none" onclick="cycleAssign('${itemId}',event)">+ assign</span>`;
-  const idx=S.income.findIndex(p=>p.id===pcId);
-  if(idx===-1) return `<span class="assign-badge none" onclick="cycleAssign('${itemId}',event)">+ assign</span>`;
-  const pal=PC_PAL[idx%PC_PAL.length];
-  const name=S.income[idx].name||('PC'+(idx+1));
-  const short=name.length>13?name.slice(0,11)+'…':name;
-  return `<span class="assign-badge" style="background:${pal.dim};color:${pal.text};border-color:${pal.color}44;" onclick="cycleAssign('${itemId}',event)">${escHtml(short)}</span>`;
+  const key=S.assignments[itemId];
+  if(!key) return `<span class="assign-badge none" onclick="cycleAssign('${itemId}',event)">+ assign</span>`;
+  const slots=genPaycheckSlots();
+  const slot=slots.find(s=>s.key===key);
+  if(!slot) return `<span class="assign-badge none" onclick="cycleAssign('${itemId}',event)">+ assign</span>`;
+  const pal=PC_PAL[slot.pcIdx%PC_PAL.length];
+  const dateStr=slot.date?slot.date.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
+  const label=dateStr?`${escHtml(slot.pc.name)} · ${dateStr}`:escHtml(slot.pc.name);
+  return `<span class="assign-badge" style="background:${pal.dim};color:${pal.text};border-color:${pal.color}44;" onclick="cycleAssign('${itemId}',event)">${label}</span>`;
 }
 function cycleAssign(itemId, evt) {
   evt.stopPropagation();
   if(!S.income.length){ toast('Add income sources in Settings first','error'); return; }
-  const cur=S.assignments[itemId], idx=S.income.findIndex(p=>p.id===cur);
-  if(idx===-1) S.assignments[itemId]=S.income[0].id;
-  else if(idx===S.income.length-1) delete S.assignments[itemId];
-  else S.assignments[itemId]=S.income[idx+1].id;
+  const slots=genPaycheckSlots();
+  const keys=slots.map(s=>s.key);
+  const cur=S.assignments[itemId], idx=keys.indexOf(cur);
+  if(idx===-1) S.assignments[itemId]=keys[0];
+  else if(idx===keys.length-1) delete S.assignments[itemId];
+  else S.assignments[itemId]=keys[idx+1];
   saveState(); renderPay();
 }
 function toggleCheck(id, el) {
