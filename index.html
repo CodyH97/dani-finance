@@ -264,7 +264,8 @@ body::before {
 .assign-badge.none { background:rgba(255,255,255,0.04); color:var(--text3); border-color:var(--border); }
 .exp-amt { font-family:var(--mono); font-size:13px; font-weight:500; color:var(--text2); flex-shrink:0; }
 .exp-amt.danger { color:var(--red); } .exp-amt.info { color:var(--blue); }
-.exp-edit-row { display:grid; grid-template-columns:1fr 110px auto; gap:8px; padding:10px 14px; background:var(--surface2); border-bottom:1px solid var(--border); align-items:end; }
+.exp-edit-row { display:grid; grid-template-columns:1fr 90px 72px auto; gap:8px; padding:10px 14px; background:var(--surface2); border-bottom:1px solid var(--border); align-items:end; }
+.due-chip { font-size:10px; font-family:var(--mono); color:var(--text3); background:var(--surface2); border:1px solid var(--border); border-radius:4px; padding:2px 5px; white-space:nowrap; flex-shrink:0; }
 
 /* ── DEBT CARDS ── */
 .debt-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:18px; margin-bottom:10px; transition:border-color 0.2s; }
@@ -381,7 +382,7 @@ body::before {
   .grid-4 { grid-template-columns:1fr 1fr; }
   .pc-grid { grid-template-columns:1fr; }
   .debt-edit-grid { grid-template-columns:1fr 1fr; }
-  .exp-edit-row { grid-template-columns:1fr 90px auto; }
+  .exp-edit-row { grid-template-columns:1fr 80px 60px auto; }
   .exp-row { padding:12px 12px; }
   .field input, .field select { font-size:16px; padding:11px 11px; }
   .btn { padding:11px 16px; }
@@ -479,7 +480,7 @@ body::before {
   <div class="section">
     <div class="section-hdr">
       <div class="section-label">Your Paychecks</div>
-      <div style="font-size:11px;color:var(--text3);font-family:var(--mono);">tap badge to assign ↓</div>
+      <button class="btn btn-ghost btn-sm" onclick="autoAssignByDueDate()">Auto-assign by due date</button>
     </div>
     <div class="pc-grid" id="pay-pc-grid"></div>
     <div id="pay-unassigned"></div>
@@ -500,7 +501,7 @@ body::before {
       <button class="btn btn-ghost btn-sm" onclick="addCategory()">+ Add category</button>
       <button class="btn btn-ghost btn-sm" onclick="resetChecks()">Reset checklist</button>
     </div>
-    <div class="note" style="margin-top:12px;">Tap the colored badge on any item to assign it to a paycheck. Tap the amount to edit it.</div>
+    <div class="note" style="margin-top:12px;">Tap any amount to edit it and set a due date. Once due dates are set, use "Auto-assign by due date" above to assign bills to the right paycheck automatically.</div>
   </div>
 </div><!-- /pay -->
 
@@ -721,6 +722,7 @@ function fmtDate(s)  { if(!s)return'—'; const d=new Date(s+'T00:00:00'); retur
 function fmtMonth(s) { if(!s)return'—'; const[y,m]=s.split('-'); return new Date(y,m-1).toLocaleDateString('en-US',{month:'short',year:'numeric'}); }
 function toNum(s)    { return parseFloat(String(s).replace(/[^0-9.]/g,''))||0; }
 function freqMult(f) { return FREQ_MULT[f]||2.167; }
+function ordinal(n)  { const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
 function escHtml(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function pct(c,o)    { if(!o)return 100; return Math.max(0,Math.min(100,Math.round((1-c/o)*100))); }
 function monthKey()  { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
@@ -1098,6 +1100,29 @@ function renderPaycheckCards() {
       ${unassigned.map(i=>`<div class="unassigned-row"><span class="unassigned-name">${escHtml(i.label)}</span><span class="unassigned-amt">${fmt(i.amount)}</span></div>`).join('')}
     </div>`:'';
 }
+function autoAssignByDueDate() {
+  const slots=genPaycheckSlots().filter(s=>s.date);
+  if(!slots.length){ toast('Set paycheck dates in Settings first','error'); return; }
+  const now=new Date();
+  let count=0;
+  S.expenses.forEach(cat=>cat.items.forEach(item=>{
+    if(!item.dueDay) return;
+    // Bill's due date in the current month
+    const due=new Date(now.getFullYear(),now.getMonth(),item.dueDay);
+    // Last paycheck that arrives on or before the due date
+    let target=null;
+    for(const slot of slots){ // sorted ascending by date
+      if(slot.date<=due) target=slot; else break;
+    }
+    // If due date is before the first paycheck, use the first one
+    if(!target) target=slots[0];
+    S.assignments[item.id]=target.key;
+    count++;
+  }));
+  if(!count){ toast('Add due dates to bills first — tap any amount to edit','error'); return; }
+  saveState(); renderPay();
+  toast(`Auto-assigned ${count} bill${count!==1?'s':''} by due date ✓`,'success');
+}
 function renderChecklist() {
   const all=allExpItems();
   const done=all.filter(i=>!!S.checks[i.id]).length;
@@ -1118,7 +1143,8 @@ function renderCat(cat) {
     if(editingExpItem&&editingExpItem.catId===cat.id&&editingExpItem.itemId===item.id){
       return `<div class="exp-edit-row">
         <div class="field" style="margin:0;"><input type="text" id="ei-lbl" value="${escHtml(item.label)}" placeholder="Label"></div>
-        <div class="field" style="margin:0;"><input type="number" id="ei-amt" value="${item.amount}" inputmode="decimal" placeholder="0"></div>
+        <div class="field" style="margin:0;"><input type="number" id="ei-amt" value="${item.amount}" inputmode="decimal" placeholder="Amount"></div>
+        <div class="field" style="margin:0;"><input type="number" id="ei-due" value="${item.dueDay||''}" inputmode="numeric" placeholder="Due day" min="1" max="31" style="text-align:center;"></div>
         <div class="btn-row" style="gap:4px;">
           <button class="btn btn-primary btn-xs" onclick="saveExpItem('${cat.id}','${item.id}')">✓</button>
           <button class="btn btn-ghost btn-xs" onclick="cancelExpEdit()">✕</button>
@@ -1127,9 +1153,11 @@ function renderCat(cat) {
       </div>`;
     }
     const done=!!S.checks[item.id], badge=getAssignBadge(item.id);
+    const dueChip=item.dueDay?`<span class="due-chip">due ${ordinal(item.dueDay)}</span>`:'';
     return `<div class="exp-row${done?' done':''}" onclick="toggleCheck('${item.id}',this)">
       <div class="exp-cb"><svg class="chk-svg" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0d0d0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <span class="exp-lbl">${escHtml(item.label)}</span>
+      ${dueChip}
       ${badge}
       <span class="exp-amt" onclick="startExpEdit('${cat.id}','${item.id}',event)">${fmt(item.amount)}</span>
     </div>`;
@@ -1191,7 +1219,7 @@ function removeCat(catId) {
 }
 function addExpItem(catId) {
   const cat=S.expenses.find(c=>c.id===catId); if(!cat) return;
-  const id=uid('e'); cat.items.push({id,label:'New item',amount:0});
+  const id=uid('e'); cat.items.push({id,label:'New item',amount:0,dueDay:null});
   editingExpItem={catId,itemId:id}; saveState(); renderPay();
 }
 function startExpEdit(catId,itemId,evt){ evt.stopPropagation(); editingExpItem={catId,itemId}; renderPay(); }
@@ -1201,6 +1229,8 @@ function saveExpItem(catId,itemId) {
   if(!item) return;
   item.label=document.getElementById('ei-lbl').value.trim()||item.label;
   item.amount=Math.max(0,toNum(document.getElementById('ei-amt').value));
+  const d=parseInt(document.getElementById('ei-due').value)||0;
+  item.dueDay=(d>=1&&d<=31)?d:null;
   editingExpItem=null; saveState(); renderPay();
 }
 function removeExpItem(catId,itemId) {
