@@ -270,6 +270,8 @@ body::before {
 .pc-attack { font-size:13px; font-weight:700; color:var(--green); padding:8px 0 0; margin-top:8px; border-top:1px solid var(--border); display:flex; align-items:center; gap:6px; }
 .pc-attack.over { color:var(--amber); }
 .pc-attack svg { flex-shrink:0; }
+.pc-spending { font-size:12px; color:var(--purple); padding:4px 0 0; display:flex; align-items:center; gap:6px; opacity:0.85; }
+.mp-spending { font-size:12px; color:var(--purple); padding:4px 16px 8px; opacity:0.85; }
 
 /* ── NEXT PAYCHECK STRIP (Home) ── */
 .next-pc { background:var(--surface); border:1px solid var(--border2); border-radius:var(--r-lg); padding:14px 16px; margin-bottom:16px; }
@@ -1017,12 +1019,16 @@ function doCheck(id) {
 function _autoAssign() {
   const slots=genPaycheckSlots().filter(s=>s.date);
   if(!slots.length) return;
-  const now=new Date();
+  const firstSlot=slots[0].date;
   S.expenses.forEach(cat=>{
-    if(cat.isBudget) return; // budget categories don't get assigned to paychecks
+    if(cat.isBudget) return;
     cat.items.forEach(item=>{
       if(!item.dueDay) return;
-      const due=new Date(now.getFullYear(),now.getMonth(),item.dueDay);
+      // Anchor to the first paycheck's month so we get the NEXT upcoming occurrence
+      // of this due day. If that date is before the first slot, push it one month forward.
+      let due=new Date(firstSlot.getFullYear(),firstSlot.getMonth(),item.dueDay);
+      if(due<firstSlot) due.setMonth(due.getMonth()+1);
+      // Assign to the last paycheck whose date falls on or before the due date
       let target=null;
       for(const slot of slots){ if(slot.date<=due) target=slot; else break; }
       if(!target) target=slots[0];
@@ -1075,6 +1081,9 @@ function renderMonthPlan() {
   items.forEach(item=>{ const k=S.assignments[item.id]; if(k&&slotMap[k]!==undefined) slotMap[k].push(item); });
   const attackDebt=S.debts.filter(d=>d.balance>0).sort((a,b)=>b.apr-a.apr)[0];
   const today=new Date(); today.setHours(0,0,0,0);
+  // Budget split: divide monthly budget evenly across all slots
+  const budgetTotal=S.expenses.filter(c=>c.isBudget).reduce((s,c)=>s+c.items.reduce((ss,i)=>ss+i.amount,0),0);
+  const spendPerSlot=slots.length>0?Math.round(budgetTotal/slots.length):0;
   const chk=`<svg class="mp-cb-icon" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0d0d0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const cards=slots.map(slot=>{
     const {key,date,pc,pcIdx}=slot;
@@ -1082,6 +1091,7 @@ function renderMonthPlan() {
     const its=slotMap[key]||[];
     const totalBills=its.reduce((s,i)=>s+i.amount,0);
     const rem=pc.amount-totalBills;
+    const attackAmt=rem-spendPerSlot;
     const doneCnt=its.filter(i=>S.checks[i.id]).length;
     const dateStr=date?date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'—';
     const billRows=its.length
@@ -1094,10 +1104,17 @@ function renderMonthPlan() {
             <span class="mp-amt">${done?'✓':'-'+fmt(i.amount)}</span>
           </div>`;
         }).join('')
-      : `<div class="mp-empty">No bills assigned — tap "Set due dates" in Pay tab</div>`;
-    const directive=rem>0&&attackDebt
-      ? `<div class="mp-directive">→ Put ${fmt(rem)} toward ${escHtml(attackDebt.name)}</div>`
-      : rem<0?`<div class="mp-directive over">⚠ Over budget by ${fmt(Math.abs(rem))}</div>`:'';
+      : `<div class="mp-empty">No bills assigned — tap "Set due dates" in Bills tab</div>`;
+    let directive='';
+    if(pc.amount>0){
+      if(rem>0){
+        const spendLine=spendPerSlot>0?`<div class="mp-spending">∼${fmt(spendPerSlot)} spending budget this period</div>`:'';
+        if(attackDebt&&attackAmt>0) directive=`<div class="mp-directive">→ Put ${fmt(attackAmt)} toward ${escHtml(attackDebt.name)}</div>${spendLine}`;
+        else directive=spendLine;
+      } else if(rem<0){
+        directive=`<div class="mp-directive over">⚠ Over by ${fmt(Math.abs(rem))}</div>`;
+      }
+    }
     const allPaid=its.length>0&&doneCnt===its.length;
     return `<div class="mp-card">
       <div class="mp-hdr${allPaid?' all-paid':''}">
@@ -1295,6 +1312,9 @@ function renderPaycheckCards() {
   items.forEach(item=>{ const k=S.assignments[item.id]; if(k&&slotMap[k]!==undefined) slotMap[k].push(item); });
   const unassigned=items.filter(i=>!S.assignments[i.id]||slotMap[S.assignments[i.id]]===undefined);
   const attackDebt=S.debts.filter(d=>d.balance>0).sort((a,b)=>b.apr-a.apr)[0];
+  // Budget split: divide monthly budget evenly across all slots
+  const budgetTotal=S.expenses.filter(c=>c.isBudget).reduce((s,c)=>s+c.items.reduce((ss,i)=>ss+i.amount,0),0);
+  const spendPerSlot=slots.length>0?Math.round(budgetTotal/slots.length):0;
   const chk=`<svg class="pc-cb-icon" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0d0d0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   document.getElementById('pay-pc-grid').innerHTML=slots.map(slot=>{
     const {key,date,pc,pcIdx}=slot;
@@ -1302,6 +1322,8 @@ function renderPaycheckCards() {
     const its=slotMap[key]||[];
     const assigned=its.reduce((s,i)=>s+i.amount,0);
     const rem=pc.amount-assigned;
+    // Attack amount = leftover after bills AND spending budget
+    const attackAmt=rem-spendPerSlot;
     const remCls=rem>=50?'surplus':rem>=0?'tight':'over';
     const dateLabel=date?date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'Set date in Settings';
     const doneCnt=its.filter(i=>S.checks[i.id]).length;
@@ -1318,8 +1340,16 @@ function renderPaycheckCards() {
       : `<div class="pc-empty-msg">No bills assigned — tap "Set due dates" above to auto-assign</div>`;
     let attackHtml='';
     if(pc.amount>0){
-      if(rem>0&&attackDebt) attackHtml=`<div class="pc-attack"><svg width="12" height="12" viewBox="0 0 12 12"><polyline points="2,6 6,2 10,6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="6" y1="2" x2="6" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Put ${fmt(rem)} toward ${escHtml(attackDebt.name)}</div>`;
-      else if(rem<0) attackHtml=`<div class="pc-attack over">⚠ Over by ${fmt(Math.abs(rem))} — move a bill to another check</div>`;
+      if(rem>0){
+        const spendLine=spendPerSlot>0?`<div class="pc-spending">∼${fmt(spendPerSlot)} spending budget this period</div>`:'';
+        if(attackDebt&&attackAmt>0){
+          attackHtml=`<div class="pc-attack"><svg width="12" height="12" viewBox="0 0 12 12"><polyline points="2,6 6,2 10,6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="6" y1="2" x2="6" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Put ${fmt(attackAmt)} toward ${escHtml(attackDebt.name)}</div>${spendLine}`;
+        } else {
+          attackHtml=spendLine;
+        }
+      } else if(rem<0){
+        attackHtml=`<div class="pc-attack over">⚠ Over by ${fmt(Math.abs(rem))} — move a bill to another check</div>`;
+      }
     }
     const ftrHtml=pc.amount>0?`<div class="pc-ftr"><div class="pc-ftr-vals">
       <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Bills</div><div class="pc-ftr-v-num">${fmt(assigned)}</div></div>
@@ -1922,6 +1952,10 @@ function toast(msg,type=''){
 
 // ── INIT ──
 S=loadState();
+// Re-run auto-assign on load so due-date assignments stay correct
+// as paychecks advance (next-occurrence logic needs current paycheck dates)
+const _hasDueDates=S.expenses.some(c=>!c.isBudget&&c.items.some(i=>i.dueDay));
+if(_hasDueDates){ _autoAssign(); saveState(); }
 checkNewMonth();
 switchTab('home');
 initSync();
