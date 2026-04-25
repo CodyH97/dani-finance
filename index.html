@@ -1081,12 +1081,14 @@ function renderMonthPlan() {
   items.forEach(item=>{ const k=S.assignments[item.id]; if(k&&slotMap[k]!==undefined) slotMap[k].push(item); });
   const attackDebt=S.debts.filter(d=>d.balance>0).sort((a,b)=>b.apr-a.apr)[0];
   const today=new Date(); today.setHours(0,0,0,0);
-  // Budget split: divide monthly budget evenly across all slots
+  // Budget split: divide monthly budget across future paychecks only (not the prev slot)
   const budgetTotal=S.expenses.filter(c=>c.isBudget).reduce((s,c)=>s+c.items.reduce((ss,i)=>ss+i.amount,0),0);
-  const spendPerSlot=slots.length>0?Math.round(budgetTotal/slots.length):0;
+  const futureSlotCount=slots.filter(s=>!s.isPrev).length;
+  const spendPerSlot=futureSlotCount>0?Math.round(budgetTotal/futureSlotCount):0;
   const chk=`<svg class="mp-cb-icon" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0d0d0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const cards=slots.map(slot=>{
     const {key,date,pc,pcIdx}=slot;
+    const isPrevSlot=!!slot.isPrev;
     const pal=PC_PAL[pcIdx%PC_PAL.length];
     const its=slotMap[key]||[];
     const totalBills=its.reduce((s,i)=>s+i.amount,0);
@@ -1094,6 +1096,10 @@ function renderMonthPlan() {
     const attackAmt=rem-spendPerSlot;
     const doneCnt=its.filter(i=>S.checks[i.id]).length;
     const dateStr=date?date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'—';
+    const nextSlot=slots.find(s=>!s.isPrev&&s.date);
+    const prevNote=isPrevSlot&&nextSlot
+      ?`<div style="font-size:11px;color:var(--amber);font-weight:600;padding:8px 16px 0;letter-spacing:0.02em;">Set aside for bills due before ${nextSlot.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>`
+      :'';
     const billRows=its.length
       ? its.map(i=>{
           const done=!!S.checks[i.id];
@@ -1104,9 +1110,9 @@ function renderMonthPlan() {
             <span class="mp-amt">${done?'✓':'-'+fmt(i.amount)}</span>
           </div>`;
         }).join('')
-      : `<div class="mp-empty">No bills assigned — tap "Set due dates" in Bills tab</div>`;
+      : (isPrevSlot?'':`<div class="mp-empty">No bills assigned — tap "Set due dates" in Bills tab</div>`);
     let directive='';
-    if(pc.amount>0){
+    if(!isPrevSlot&&pc.amount>0){
       if(rem>0){
         const spendLine=spendPerSlot>0?`<div class="mp-spending">∼${fmt(spendPerSlot)} spending budget this period</div>`:'';
         if(attackDebt&&attackAmt>0) directive=`<div class="mp-directive">→ Put ${fmt(attackAmt)} toward ${escHtml(attackDebt.name)}</div>${spendLine}`;
@@ -1116,21 +1122,26 @@ function renderMonthPlan() {
       }
     }
     const allPaid=its.length>0&&doneCnt===its.length;
-    return `<div class="mp-card">
+    if(isPrevSlot&&!its.length) return ''; // hide prev slot card if nothing assigned to it
+    return `<div class="mp-card"${isPrevSlot?' style="opacity:0.75;"':''}>
       <div class="mp-hdr${allPaid?' all-paid':''}">
         <div class="mp-hdr-l">
-          <div class="mp-dot" style="background:${pal.color}"></div>
-          <div><div class="mp-name">${escHtml(pc.name)}</div><div class="mp-date" style="color:${pal.color}">${dateStr}</div></div>
+          <div class="mp-dot" style="background:${isPrevSlot?'var(--amber)':pal.color}"></div>
+          <div>
+            <div class="mp-name">${escHtml(pc.name)}</div>
+            <div class="mp-date" style="color:${isPrevSlot?'var(--amber)':pal.color}">${dateStr}${isPrevSlot?' · last paycheck':''}</div>
+          </div>
         </div>
         ${allPaid
           ? `<div class="all-paid-badge">✓ All paid!</div>`
           : `<div class="mp-progress">${doneCnt}/${its.length} paid</div>`}
       </div>
+      ${prevNote}
       <div class="mp-bills">${billRows}</div>
-      ${pc.amount>0?`<div class="mp-footer">
+      ${pc.amount>0&&totalBills>0?`<div class="mp-footer">
         <span>Bills: ${fmt(totalBills)}</span>
         <span>Paycheck: ${fmt(pc.amount)}</span>
-        <span class="${rem>=0?'surplus':'over'}">Left over: ${rem>=0?'+':''}${fmt(rem)}</span>
+        ${!isPrevSlot?`<span class="${rem>=0?'surplus':'over'}">Left over: ${rem>=0?'+':''}${fmt(rem)}</span>`:''}
       </div>${directive}`:''}
     </div>`;
   }).join('');
@@ -1285,6 +1296,12 @@ function genPaycheckSlots() {
     const d0=new Date(p.nextDate+'T00:00:00');
     const period=p.frequency==='weekly'?7:p.frequency==='monthly'?null:p.frequency==='twice-monthly'?15:14;
     const count=p.frequency==='monthly'||p.frequency==='twice-monthly'?1:2; // biweekly/weekly → 2 slots
+    // Include the previous paycheck so bills due before the next paycheck assign to the right check
+    // (e.g. bill due the 24th with next paycheck on the 25th → should come from the prior check)
+    if(period){
+      const prevD=new Date(d0); prevD.setDate(prevD.getDate()-period);
+      slots.push({key:p.id+':prev',slot:-1,date:prevD,pc:p,pcIdx:S.income.indexOf(p),isPrev:true});
+    }
     for(let s=0;s<count;s++){
       let d=new Date(d0);
       if(period) d.setDate(d.getDate()+period*s);
@@ -1312,12 +1329,14 @@ function renderPaycheckCards() {
   items.forEach(item=>{ const k=S.assignments[item.id]; if(k&&slotMap[k]!==undefined) slotMap[k].push(item); });
   const unassigned=items.filter(i=>!S.assignments[i.id]||slotMap[S.assignments[i.id]]===undefined);
   const attackDebt=S.debts.filter(d=>d.balance>0).sort((a,b)=>b.apr-a.apr)[0];
-  // Budget split: divide monthly budget evenly across all slots
+  // Budget split: divide monthly budget across future paychecks only (not the prev slot)
   const budgetTotal=S.expenses.filter(c=>c.isBudget).reduce((s,c)=>s+c.items.reduce((ss,i)=>ss+i.amount,0),0);
-  const spendPerSlot=slots.length>0?Math.round(budgetTotal/slots.length):0;
+  const futureSlotCount=slots.filter(s=>!s.isPrev).length;
+  const spendPerSlot=futureSlotCount>0?Math.round(budgetTotal/futureSlotCount):0;
   const chk=`<svg class="pc-cb-icon" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0d0d0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   document.getElementById('pay-pc-grid').innerHTML=slots.map(slot=>{
     const {key,date,pc,pcIdx}=slot;
+    const isPrevSlot=!!slot.isPrev;
     const pal=PC_PAL[pcIdx%PC_PAL.length];
     const its=slotMap[key]||[];
     const assigned=its.reduce((s,i)=>s+i.amount,0);
@@ -1327,6 +1346,10 @@ function renderPaycheckCards() {
     const remCls=rem>=50?'surplus':rem>=0?'tight':'over';
     const dateLabel=date?date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'Set date in Settings';
     const doneCnt=its.filter(i=>S.checks[i.id]).length;
+    const nextSlot=slots.find(s=>!s.isPrev&&s.date);
+    const prevNote=isPrevSlot&&nextSlot
+      ?`<div style="font-size:11px;color:var(--amber);font-weight:600;padding:8px 16px 0;letter-spacing:0.02em;">Set aside for bills due before ${nextSlot.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>`
+      :'';
     const itsHtml=its.length
       ? its.map(i=>{
           const done=!!S.checks[i.id];
@@ -1337,9 +1360,9 @@ function renderPaycheckCards() {
             <span class="pc-item-amt">${done?'✓':'-'+fmt(i.amount)}</span>
           </div>`;
         }).join('')
-      : `<div class="pc-empty-msg">No bills assigned — tap "Set due dates" above to auto-assign</div>`;
+      : (isPrevSlot?'':`<div class="pc-empty-msg">No bills assigned — tap "Set due dates" above to auto-assign</div>`);
     let attackHtml='';
-    if(pc.amount>0){
+    if(!isPrevSlot&&pc.amount>0){
       if(rem>0){
         const spendLine=spendPerSlot>0?`<div class="pc-spending">∼${fmt(spendPerSlot)} spending budget this period</div>`:'';
         if(attackDebt&&attackAmt>0){
@@ -1351,16 +1374,20 @@ function renderPaycheckCards() {
         attackHtml=`<div class="pc-attack over">⚠ Over by ${fmt(Math.abs(rem))} — move a bill to another check</div>`;
       }
     }
-    const ftrHtml=pc.amount>0?`<div class="pc-ftr"><div class="pc-ftr-vals">
+    const ftrHtml=pc.amount>0&&assigned>0?`<div class="pc-ftr"><div class="pc-ftr-vals">
       <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Bills</div><div class="pc-ftr-v-num">${fmt(assigned)}</div></div>
       <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Paycheck</div><div class="pc-ftr-v-num">${fmt(pc.amount)}</div></div>
-      <div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Left over</div><div class="pc-ftr-v-num ${remCls}">${rem>=0?'+':'-'}${fmt(Math.abs(rem))}</div></div>
+      ${!isPrevSlot?`<div class="pc-ftr-v"><div class="pc-ftr-v-lbl">Left over</div><div class="pc-ftr-v-num ${remCls}">${rem>=0?'+':'-'}${fmt(Math.abs(rem))}</div></div>`:''}
     </div>${attackHtml}</div>`:'';
     const allPaid=its.length>0&&doneCnt===its.length;
-    return `<div class="pc-card">
+    if(isPrevSlot&&!its.length) return ''; // hide prev slot card if nothing is assigned to it
+    return `<div class="pc-card"${isPrevSlot?' style="opacity:0.75;"':''}>
       <div class="pc-hdr${allPaid?' all-paid':''}">
-        <div class="pc-hdr-l"><div class="pc-dot" style="background:${pal.color};"></div>
-          <div><div class="pc-name">${escHtml(pc.name)}</div><div class="pc-date" style="color:${pal.color};font-weight:600;">${dateLabel}</div></div>
+        <div class="pc-hdr-l"><div class="pc-dot" style="background:${isPrevSlot?'var(--amber)':pal.color};"></div>
+          <div>
+            <div class="pc-name">${escHtml(pc.name)}</div>
+            <div class="pc-date" style="color:${isPrevSlot?'var(--amber)':pal.color};font-weight:600;">${dateLabel}${isPrevSlot?' · last paycheck':''}</div>
+          </div>
         </div>
         <div style="text-align:right;">
           <div class="pc-amt">${pc.amount>0?fmt(pc.amount):'—'}</div>
@@ -1369,9 +1396,10 @@ function renderPaycheckCards() {
             : `<div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px;">${doneCnt}/${its.length} paid</div>`}
         </div>
       </div>
+      ${prevNote}
       <div class="pc-items">${itsHtml}</div>${ftrHtml}
     </div>`;
-  }).join('');
+  }).filter(Boolean).join('');
   // Unassigned bills with checkboxes
   const chkU=`<svg class="pc-cb-icon" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#0d0d0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   document.getElementById('pay-unassigned').innerHTML=unassigned.length?`
